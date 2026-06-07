@@ -1,0 +1,2589 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>莉莉絲的織夢室</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;700&display=swap');
+        :root {
+            --gold:      #c0a060;
+            --gold-dark: #a08040;
+            --bg:        #1a0f08;
+            --panel:     rgba(20, 12, 6, 0.88);
+            --text:      #f5eadd;
+            --red:       #8c3b3b;
+            --green:     #4a7c59;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { width: 100vw; height: 100vh; overflow: hidden; background: #0d0a06; font-family: 'Noto Serif TC', serif; }
+        #game-board {
+            position: relative; width: 100vw; height: 100vh; overflow: hidden;
+            background-image: url('https://images.unsplash.com/photo-1542642594-72815343468f?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover; background-position: center;
+        }
+        #bg-overlay { position: absolute; inset: 0; background: rgba(8,4,0,0.72); pointer-events: none; z-index: 0; }
+        .screen { position: absolute; inset: 0; display: none; flex-direction: column; z-index: 1; }
+        .screen.active { display: flex; }
+
+        /* NIGHT HEADER */
+        #hdr {
+            height: 62px; flex-shrink: 0; display: flex; align-items: center;
+            padding: 0 16px; background: var(--panel);
+            border-bottom: 2px solid var(--gold-dark); gap: 8px; position: relative; flex-wrap: nowrap;
+        }
+        .badge {
+            display: flex; align-items: center; gap: 5px;
+            background: rgba(0,0,0,0.45); border: 1px solid var(--gold-dark);
+            border-radius: 5px; padding: 5px 10px; font-size: 13px; color: var(--text); white-space: nowrap;
+        }
+        .badge .lbl { color: var(--gold); font-weight: 700; font-size: 11px; opacity: 0.85; }
+        .badge .val { font-weight: 700; font-size: 15px; }
+        .toggle-btn {
+            width: 36px; height: 36px; border-radius: 6px;
+            background: rgba(0,0,0,0.45); border: 1px solid var(--gold-dark);
+            color: var(--gold); font-size: 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background .2s, border-color .2s, transform .15s;
+            user-select: none;
+        }
+        .toggle-btn:hover { background: rgba(0,0,0,0.65); border-color: var(--gold); }
+        .toggle-btn:active { transform: scale(0.95); }
+        .toggle-btn.off { opacity: 0.4; color: rgba(245,234,221,0.5); }
+        .toggle-btn.off:hover { opacity: 0.6; }
+        #hdr-center { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; line-height: 1.25; pointer-events: none; }
+        .day-title  { font-size: 20px; font-weight: 700; color: var(--gold); letter-spacing: 3px; }
+        .phase-lbl  { font-size: 11px; color: var(--text); opacity: 0.75; letter-spacing: 2px; }
+        #hdr-right  { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+        /* PLAY AREA */
+        #play-area {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            padding: 16px 270px 8px 32px; gap: 20px; min-height: 0; position: relative;
+        }
+        #slots-row { display: flex; gap: 14px; align-items: flex-start; }
+        .slot-wrap  { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .slot-lbl   { font-size: 11px; color: var(--gold); letter-spacing: 2px; font-weight: 700; }
+
+        .story-slot, .prot-slot {
+            width: clamp(90px, 8vw, 128px); height: clamp(130px, 11vh, 178px);
+            background: linear-gradient(135deg, rgba(15,8,4,0.88), rgba(0,0,0,0.7));
+            border: 2px solid var(--gold-dark); border-radius: 10px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 30px; font-weight: 700; color: rgba(192,160,96,0.35);
+            cursor: pointer; transition: border-color .25s, box-shadow .25s;
+            position: relative; overflow: hidden;
+        }
+        .prot-slot  { border-color: var(--gold); color: rgba(192,160,96,0.25); }
+        .story-slot.active-slot {
+            border-color: var(--gold);
+            box-shadow: 0 0 22px rgba(192,160,96,.55), inset 0 0 18px rgba(0,0,0,.5);
+            animation: pulse 1.6s ease-in-out infinite;
+        }
+        .story-slot.filled { border-color: rgba(192,160,96,.6); }
+        .story-slot.drag-over { border-color: var(--gold) !important; box-shadow: 0 0 32px rgba(192,160,96,.9) !important; transform: scale(1.06); transition: none; }
+        .card[draggable=true] { cursor: grab; }
+        .card[draggable=true]:active { cursor: grabbing; }
+
+        /* HERO DISPLAY */
+        #heroes-display { display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;min-height:34px;padding:6px 16px;background:rgba(15,8,4,.72);border:1px solid var(--gold-dark);border-radius:8px; }
+        .hero-chip { background:rgba(192,160,60,.15);border:1px solid rgba(192,160,60,.5);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--gold);cursor:default;white-space:nowrap; }
+        .hd-empty { font-size:12px;color:rgba(245,234,221,.35);font-style:italic; }
+
+        /* DECK VIEWER */
+        .deck-mini { width:48px;height:68px;border:1px solid rgba(160,128,64,.4);border-radius:6px;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:default;background:rgba(20,12,6,.85); }
+        .deck-mini .dm-num { font-size:18px;font-weight:700;line-height:1; }
+        .deck-mini .dm-col { font-size:9px;opacity:.7;margin-top:2px; }
+        .deck-stack { cursor:pointer; }
+        .deck-stack:hover .deck-layer { border-color:var(--gold); }
+
+        /* PHASE DISPLAY */
+        #phase-area { display:flex; flex-direction:column; align-items:center; gap:18px; }
+        #phase-row  { display:flex; gap:10px; align-items:center; }
+        .phase-step {
+            width:clamp(76px,6.5vw,106px); background:rgba(15,8,4,0.82);
+            border:2px solid rgba(160,128,64,0.3); border-radius:10px;
+            padding:12px 8px; text-align:center; transition:border-color .3s,box-shadow .3s;
+            display:flex; flex-direction:column; align-items:center; gap:5px;
+        }
+        .phase-step.active {
+            border-color:var(--gold);
+            box-shadow:0 0 22px rgba(192,160,96,.5),inset 0 0 14px rgba(0,0,0,.4);
+            animation:pulse 1.6s ease-in-out infinite;
+        }
+        .phase-step.done { border-color:rgba(192,160,96,.5); opacity:.9; }
+        .ps-name  { font-size:clamp(22px,2.2vw,30px); font-weight:700; color:var(--gold); line-height:1; }
+        .ps-hand  { font-size:10px; letter-spacing:1px; min-height:14px; }
+        .ps-score { font-size:clamp(14px,1.4vw,19px); font-weight:700; color:#ffd700; }
+        .phase-arrow { font-size:22px; color:rgba(192,160,96,.35); }
+        #prot-display {
+            width: 96px; height: 136px; border-radius: 10px; overflow: hidden;
+            border: 2px solid var(--gold); background: rgba(15,8,4,.88);
+            position: relative; box-shadow: 0 4px 12px rgba(192,160,96,.4);
+            margin-bottom: 12px;
+        }
+        .pd-name {
+            position:absolute; left:0; right:0; bottom:0; text-align:center;
+            font-weight:700; color:var(--gold); font-size:13px;
+            background:linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,.22));
+            padding:7px 4px 6px; letter-spacing:1px;
+        }
+        .pd-mult { font-size:12px; color:#a0e0a0; font-weight:700; }
+        .pd-avatar { width:100%; height:100%; object-fit:cover; display:block; }
+
+        /* Setup protagonist cards */
+        #setup-protagonists { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:10px 0 6px; }
+        .setup-protagonist-card {
+            display:flex; align-items:center; gap:10px; padding:8px 10px;
+            border:1px solid rgba(192,160,96,.28); border-radius:8px;
+            background:rgba(0,0,0,.22); cursor:pointer; transition:border-color .2s, box-shadow .2s;
+        }
+        .setup-protagonist-card:hover { border-color:rgba(192,160,96,.62); box-shadow:0 0 12px rgba(192,160,96,.2); }
+        .setup-protagonist-card.active { border-color:var(--gold); box-shadow:0 0 16px rgba(192,160,96,.35); }
+        .setup-protagonist-card img { width:44px; height:44px; object-fit:cover; border-radius:6px; border:1px solid rgba(192,160,96,.35); }
+        .setup-protagonist-card .sp-name { font-size:13px; color:var(--gold); font-weight:700; }
+        .setup-protagonist-card .sp-desc { font-size:11px; color:rgba(245,234,221,.72); }
+        .setup-protagonist-card.locked { opacity:.45; filter:grayscale(.55); cursor:not-allowed; }
+        .setup-protagonist-card.locked:hover { border-color:rgba(192,160,96,.28); box-shadow:none; }
+
+        @keyframes pulse {
+            0%,100% { box-shadow: 0 0 14px rgba(192,160,96,.3), inset 0 0 14px rgba(0,0,0,.5); }
+            50%      { box-shadow: 0 0 30px rgba(192,160,96,.7), inset 0 0 18px rgba(0,0,0,.5); }
+        }
+        .slot-inner { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
+        .slot-num   { font-size: 38px; font-weight: 700; line-height: 1; }
+        .slot-tag   { font-size: 11px; opacity: .75; margin-top: 4px; }
+        .slot-divider { width: 1px; height: 150px; background: linear-gradient(to bottom,transparent,var(--gold-dark),transparent); align-self: center; margin: 0 6px; }
+
+        /* LILITH */
+        #lily-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 260px; display: flex; flex-direction: column; align-items: center; text-align: center; pointer-events: none; z-index: 5; }
+        #lily-frame { width: 100%; flex: 1; overflow: visible; background: none; border: none; border-radius: 0; display: flex; align-items: flex-end; justify-content: center; min-height: 0; }
+        /* LILITH SPRITE (night screen) */
+        #lily-sprite-wrap { position: absolute; bottom: 0; right: 8%; height: 88vh; pointer-events: none; z-index: 3; display: flex; align-items: flex-end; }
+        #lily-night-canvas { height: 100%; width: auto; filter: drop-shadow(0 0 28px rgba(0,0,0,.95)); display: none; }
+        #lily-name-lbl  { font-size: 15px; color: var(--gold); font-weight: 700; letter-spacing: 3px; margin-top: 5px; pointer-events: auto; }
+        #lily-reaction  { font-size: 13px; color: var(--text); opacity: 1; font-style: italic; min-height: 48px; margin-top: 6px; line-height: 2.0; white-space: pre-line; pointer-events: auto; background: rgba(0,0,0,0.35); border-radius: 6px; padding: 8px 10px; border: 1px solid rgba(192,160,96,0.20); }
+
+        /* EVENT MODAL — VN STYLE */
+        .vn-overlay { flex-direction: column !important; justify-content: flex-end !important; align-items: stretch !important; padding: 0 !important; background: rgba(0,0,0,0.7); }
+        #ev-sprite-wrap { position: absolute; bottom: 0; left: 0; right: 0; height: 88vh; pointer-events: none; z-index: 1; display: flex; align-items: flex-end; justify-content: center; }
+        #ev-sprite-wrap img { height: 100%; width: auto; object-fit: contain; filter: drop-shadow(0 0 28px rgba(0,0,0,0.95)); transition: opacity 0.4s ease; }
+        #lilith-canvas { height: 100%; width: auto; filter: drop-shadow(0 0 28px rgba(0,0,0,0.95)); display: none; }
+        /* reveal/dark canvases: absolute-positioned inside their flex wrapper, independently sized */
+        #lilith-reveal-canvas {
+            position: absolute; bottom: -200px; left: 50%; transform: translateX(-50%);
+            height: 119vh; width: auto; display: none;
+        }
+        #lilith-dark-canvas {
+            position: absolute; bottom: -200px; left: 50%; transform: translateX(-50%);
+            height: 119vh; width: auto; display: none;
+        }
+        #lilith-sleepwear-canvas {
+            height: 100%; width: auto; display: none;
+        }
+        #dungeon-reveal-canvas {
+            position: absolute; bottom: -200px; left: 50%; transform: translateX(calc(-50% - 60px));
+            height: 119vh; width: auto; display: none;
+        }
+        #dungeon-dark-canvas {
+            position: absolute; bottom: -200px; left: 50%; transform: translateX(calc(-50% - 60px));
+            height: 119vh; width: auto; display: none;
+        }
+        #scene-transition { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 9999; transition: opacity 0.45s ease; }
+        #scene-transition.fading { opacity: 1; pointer-events: all; }
+        #ev-vn-box {
+            position: relative; z-index: 10; width: 100%; min-height: 220px; max-height: 48vh;
+            background: rgba(5,2,1,0.93); border-top: 2px solid var(--gold-dark);
+            padding: 22px 80px 28px; overflow-y: auto; flex-shrink: 0;
+        }
+        #ev-speaker {
+            font-size: 14px; font-weight: 700; color: var(--gold); letter-spacing: 3px;
+            background: rgba(5,2,1,0.97); border: 1px solid var(--gold-dark); border-bottom: none;
+            display: inline-block; padding: 4px 20px; border-radius: 4px 4px 0 0;
+            position: absolute; top: -31px; left: 80px; min-width: 90px; text-align: center;
+        }
+        #ev-speaker:empty { display: none; }
+        #ev-vn-box .ev-scene { font-size: 15px; line-height: 2.1; color: var(--text); opacity: .88; white-space: pre-line; margin-bottom: 14px; }
+        #ev-vn-box .ev-dialogue { border: none; padding: 0; background: none; margin-bottom: 16px; }
+        #ev-vn-box .ev-dialogue .speaker { display: none; }
+        #ev-vn-box .ev-dialogue .words { font-size: 15px; color: var(--text); line-height: 2.1; white-space: pre-line; }
+        .ev-choices { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+        .ev-choice { background: rgba(15,8,4,.7); border: 1px solid rgba(192,160,96,0.4); border-radius: 5px; padding: 10px 16px; cursor: pointer; font-size: 13px; color: var(--text); font-family: 'Noto Serif TC', serif; text-align: left; transition: border-color .2s, background .2s, color .2s; }
+        .ev-choice:hover { border-color: var(--gold); background: rgba(40,25,10,.9); color: var(--gold); }
+        #ev-close-row { text-align: right; margin-top: 12px; }
+
+        /* CONTROLS */
+        #ctrl-bar {
+            height: 70px; flex-shrink: 0; display: flex; align-items: center;
+            justify-content: center; gap: 32px; background: var(--panel);
+            border-top: 2px solid rgba(160,128,64,.3); border-bottom: 1px solid rgba(160,128,64,.2);
+            position: relative; z-index: 10;
+        }
+        .stage-hint     { font-size: 13px; color: var(--text); opacity: .90; line-height: 1.6; text-align: center; }
+        .stage-hint span{ color: var(--gold); font-weight: 700; }
+
+        /* BUTTONS */
+        .btn {
+            padding: 9px 26px; background: rgba(15,8,4,.85); border: 2px solid var(--gold-dark);
+            border-radius: 6px; color: var(--text); font-size: 15px;
+            font-family: 'Noto Serif TC', serif; font-weight: 700; cursor: pointer;
+            letter-spacing: 1px; transition: background .2s, box-shadow .2s, transform .15s;
+            text-shadow: 1px 1px 2px rgba(0,0,0,.7);
+        }
+        .btn:hover:not(:disabled) { background: var(--gold-dark); color: #fff; box-shadow: 0 0 14px var(--gold); transform: translateY(-2px); }
+        .btn:disabled { opacity: .4; cursor: not-allowed; filter: grayscale(60%); }
+        .btn-narrate { border-color: var(--green); color: #7ad094; min-width: 120px; }
+        .btn-reroll  { border-color: var(--red);   color: #e07070; min-width: 150px; }
+        .btn-gold    { border-color: var(--gold);   color: var(--gold); }
+
+        /* HAND */
+        #hand-area-wrap {
+            height: clamp(190px,21vh,240px); flex-shrink: 0; background: var(--panel);
+            border-top: 3px solid var(--gold-dark); display: flex; align-items: center;
+            justify-content: center; padding: 10px 20px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+            position: relative; z-index: 10;
+        }
+        #hand-area { display: flex; gap: 10px; align-items: center; }
+
+        /* CARDS */
+        .card {
+            width: clamp(84px,7vw,112px); height: clamp(124px,12vh,162px);
+            border: 2px solid var(--gold-dark); border-radius: 10px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            cursor: pointer; transition: transform .18s, box-shadow .18s;
+            position: relative; box-shadow: 3px 4px 10px rgba(0,0,0,.7);
+            user-select: none; overflow: hidden;
+        }
+        .card:hover    { transform: translateY(-12px); box-shadow: 3px 15px 22px rgba(0,0,0,.8); z-index: 20; }
+        .card.selected { transform: translateY(-18px) scale(1.07); box-shadow: 0 0 22px var(--gold); border-color: var(--gold); z-index: 20; }
+        .c-red  { background: linear-gradient(160deg, #fff4f4, #f5ddd0); }
+        .c-yel  { background: linear-gradient(160deg, #fffcee, #f5eec0); }
+        .c-blu  { background: linear-gradient(160deg, #f0f5ff, #ccddf5); }
+        .c-wht  { background: linear-gradient(160deg, #ffffff, #f0f0f0); }
+        .c-red .cnum { color: #8c2222; }
+        .c-yel .cnum { color: #907010; }
+        .c-blu .cnum { color: #1a4a78; }
+        .c-wht .cnum { color: #333;    }
+        .cnum { font-size: clamp(34px,3.8vw,50px); font-weight: 700; line-height: 1; }
+        .ctag { font-size: 11px; font-weight: 700; opacity: .80; margin-top: 3px; }
+        .cpip { position: absolute; top: 6px; left: 8px; font-size: 12px; opacity: .85; z-index: 2; }
+        .card-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:8px; z-index:0; }
+        .card.pcard { border-color: var(--gold); box-shadow: 0 0 10px rgba(192,160,96,.25), 3px 4px 10px rgba(0,0,0,.7); }
+        .pcard .pname { font-size: 11px; font-weight: 700; position: absolute; top: 7px; left: 0; right: 0; text-align: center; color: #2c1e14; }
+        .pcard .pimg  { width: 88%; height: 50%; object-fit: cover; border-radius: 4px; margin-bottom: 4px; }
+
+        /* DECK */
+        .deck-wrap  { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-left: 18px; }
+        .deck-stack { width: 70px; height: 100px; position: relative; }
+        .deck-layer { width: 100%; height: 100%; background: linear-gradient(135deg,var(--gold-dark),#7a6030); border: 2px solid var(--gold); border-radius: 8px; position: absolute; }
+        .deck-layer:nth-child(1) { transform: translate(4px,-4px); }
+        .deck-layer:nth-child(2) { transform: translate(2px,-2px); }
+        .deck-layer:nth-child(3) { transform: translate(0,0); }
+        .deck-lbl { font-size: 11px; color: var(--gold); letter-spacing: 1px; opacity: 0.85; }
+        .deck-num { font-size: 14px; color: var(--text); font-weight: 700; }
+
+        /* DAY SCREEN */
+        #day-screen { background: linear-gradient(160deg, #080503 0%, #160d08 60%, #0d0805 100%); }
+        #day-hdr { padding: 22px 40px 14px; border-bottom: 2px solid var(--gold-dark); text-align: center; }
+        #day-hdr h1 { font-size: clamp(20px,2.5vw,28px); color: var(--gold); letter-spacing: 4px; text-shadow: 0 0 16px rgba(192,160,96,.4); }
+        #day-hdr p  { color: var(--text); opacity: .80; margin-top: 6px; font-size: 13px; letter-spacing: 0.5px; }
+        #day-body { flex: 1; display: flex; align-items: center; justify-content: center; gap: 36px; padding: 20px 40px; min-height: 0; }
+        #energy-panel { background: var(--panel); border: 2px solid var(--gold-dark); border-radius: 12px; padding: 22px 26px; min-width: 200px; text-align: center; }
+        #energy-panel h3 { color: var(--gold); font-size: 17px; letter-spacing: 2px; margin-bottom: 14px; text-shadow: 0 0 10px rgba(192,160,96,0.3); }
+        .energy-orbs { display: flex; gap: 9px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+        .orb {
+            width: 38px; height: 38px; border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #a0e0ff, #2060a0);
+            border: 2px solid #60a0e0; box-shadow: 0 0 10px rgba(80,160,240,.55); transition: all .3s;
+        }
+        .orb.spent { background: radial-gradient(circle at 35% 35%, #555, #222); border-color: #444; box-shadow: none; }
+        #energy-txt { font-size: 13px; color: var(--text); opacity: .88; }
+        #energy-txt strong { color: #90d4ff; font-size: 15px; }
+        #memory-list { margin-top: 14px; max-height: 130px; overflow-y: auto; }
+        .mem-item { font-size: 12px; color: var(--text); opacity: .90; padding: 4px 0; border-bottom: 1px solid rgba(160,128,64,.15); }
+        .mem-item.rare   { color: #c0a0ff; }
+        .mem-item.legend { color: #ffd700; }
+        #locations-panel { flex: 1; max-width: 560px; }
+        #locations-panel h3 { color: var(--gold); font-size: 17px; letter-spacing: 2px; margin-bottom: 14px; text-align: center; }
+        .loc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .loc-card {
+            background: var(--panel); border: 2px solid var(--gold-dark); border-radius: 10px;
+            padding: 18px 14px; cursor: pointer; transition: border-color .2s, box-shadow .2s, transform .15s; text-align: center;
+        }
+        .loc-card:hover:not(.disabled) { border-color: var(--gold); box-shadow: 0 0 16px rgba(192,160,96,.3); transform: translateY(-3px); }
+        .loc-card.disabled { opacity: .4; cursor: not-allowed; }
+        .loc-card.visited  { opacity: .65; border-color: rgba(160,128,64,.3); }
+        .loc-card.has-event { border-color: var(--gold); box-shadow: 0 0 10px rgba(192,160,96,.3); }
+        .ev-badge { display:inline-flex; align-items:center; justify-content:center; background:var(--gold); color:#1a0f08; border-radius:50%; width:18px; height:18px; font-size:12px; font-weight:900; margin-left:4px; vertical-align:middle; animation: pulse 1.6s ease-in-out infinite; }
+        .loc-icon { font-size: 30px; margin-bottom: 6px; }
+        .loc-name { font-size: 15px; font-weight: 700; color: var(--gold); }
+        .loc-desc { font-size: 12px; color: var(--text); opacity: .78; margin-top: 4px; line-height: 1.5; }
+        #day-footer { padding: 14px 40px 20px; display: flex; justify-content: flex-end; border-top: 1px solid rgba(160,128,64,.2); }
+
+        /* MODALS */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.87); display: none; justify-content: center; align-items: center; z-index: 200; }
+        .overlay.show { display: flex; }
+        .mpanel {
+            background: linear-gradient(160deg, #2a1a0e, #180c06);
+            border: 3px solid var(--gold); border-radius: 16px; padding: 38px 46px;
+            text-align: center; box-shadow: 0 0 60px rgba(0,0,0,.95), 0 0 30px rgba(192,160,96,.15);
+            max-width: 500px; width: 92%;
+        }
+        .mpanel h2 { font-size: 24px; color: var(--gold); margin-bottom: 18px; letter-spacing: 3px; }
+        .mpanel p  { color: var(--text); font-size: 13px; opacity: .8; margin-bottom: 14px; }
+        .sel-row { display: flex; gap: 14px; justify-content: center; margin-bottom: 18px; }
+        .sel-row select {
+            background: rgba(15,8,4,.92); border: 2px solid var(--gold-dark); color: var(--text);
+            font-family: 'Noto Serif TC', serif; padding: 9px 14px; font-size: 13px; border-radius: 6px; cursor: pointer;
+        }
+        .sel-row select:focus { outline: none; border-color: var(--gold); }
+
+        /* RESULT */
+        #result-overlay .mpanel { max-width: 520px; text-align: left; max-height: 88vh; overflow-y: auto; padding: 28px 32px; }
+        .narrator-block { background: rgba(0,0,0,0.40); border-left: 3px solid var(--gold-dark); border-radius: 4px; padding: 13px 16px; margin-bottom: 4px; font-size: 13px; color: rgba(240,220,180,.92); font-style: italic; }
+        .narrator-block p { margin: 0 0 12px; line-height: 2.1; }
+        .narrator-block p:last-child { margin-bottom: 0; }
+        .choice-area { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.12); }
+        .choice-prompt { font-size: 11px; color: rgba(240,220,180,0.65); letter-spacing: 2px; margin-bottom: 10px; text-align: center; }
+        .result-choice-btn { display: block; width: 100%; margin-bottom: 8px; background: rgba(180,140,60,0.12); border: 1px solid rgba(180,140,60,0.40); border-radius: 5px; color: rgba(240,220,180,0.92); font-size: 13px; line-height: 1.8; padding: 10px 14px; text-align: left; cursor: pointer; font-family: inherit; transition: background .2s, border-color .2s; }
+        .result-choice-btn:hover { background: rgba(180,140,60,0.26); border-color: var(--gold); color: var(--gold); }
+        .choice-reaction { font-size: 13px; color: rgba(240,220,180,0.92); font-style: italic; line-height: 2.0; padding: 6px 4px; white-space: pre-line; }
+        .choice-gw-badge { display: inline-block; font-size: 12px; color: #90e0a0; margin-top: 6px; letter-spacing: 1px; font-weight: 700; }
+        .special-reveal-block { background: rgba(0,0,0,0.32); border-left: 3px solid rgba(180,140,60,0.55); border-radius: 4px; padding: 12px 16px; margin-top: 14px; font-size: 13px; color: rgba(240,220,180,0.88); font-style: italic; }
+        .special-reveal-block p { margin: 0 0 10px; line-height: 2.1; }
+        .special-reveal-block p:last-child { margin-bottom: 0; }
+        #result-hand-type { display: inline-block; font-size: 21px; font-weight: 700; color: var(--text); border: 1px solid var(--gold-dark); border-radius: 6px; padding: 7px 20px; margin-bottom: 20px; background: rgba(0,0,0,0.25); }
+        .srow { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(160,128,64,.20); font-size: 14px; }
+        .srow .sl { color: rgba(240,220,180,.82); }
+        .srow .sv { font-weight: 700; color: var(--gold); }
+        .srow.total { border-bottom: none; border-top: 2px solid var(--gold-dark); margin-top: 8px; padding-top: 14px; font-size: 20px; }
+        .srow.total .sv { font-size: 26px; color: #ffd700; }
+        #reroll-energy-note { margin: 14px 0 4px; font-size: 13px; color: #a0c8e8; background: rgba(30,50,80,.40); border: 1px solid rgba(80,130,180,.35); border-radius: 6px; padding: 10px 14px; line-height: 1.7; }
+        #result-btns { display: flex; gap: 14px; justify-content: center; margin-top: 18px; }
+        .result-section-lbl { font-size: 10px; color: var(--gold-dark); letter-spacing: 3px; text-align: center; padding: 4px 0 2px; opacity: 0.85; user-select: none; }
+
+        /* COIN */
+        #coin-modal .mpanel { max-width: 400px; }
+        #coin-modal h3   { color: var(--gold); font-size: 20px; margin-bottom: 6px; }
+        .cdesc { color: var(--text); font-size: 13px; opacity: .8; margin-bottom: 18px; }
+        .coin-row { display: flex; gap: 20px; justify-content: center; margin-bottom: 14px; }
+        .coin-btn {
+            width: 84px; height: 84px; border-radius: 50%;
+            border: 3px solid var(--gold);
+            background: radial-gradient(circle at 35% 35%, #ffe070, #a07000);
+            font-size: 26px; cursor: pointer; transition: transform .2s, box-shadow .2s;
+            box-shadow: 0 4px 14px rgba(0,0,0,.6);
+        }
+        .coin-btn:hover:not(:disabled) { transform: scale(1.1); box-shadow: 0 0 24px rgba(255,215,0,.5); }
+        .coin-btn:disabled { opacity: .5; cursor: not-allowed; }
+        #coin-res { font-size: 14px; color: var(--text); min-height: 56px; line-height: 1.6; margin-top: 10px; }
+        .cwin  { color: #80e090; }
+        .cfail { color: #e07070; }
+
+        /* HELP */
+        #help-modal .mpanel { max-width: 640px; text-align: left; max-height: 82vh; overflow-y: auto; padding: 30px 36px; }
+        #help-modal h3 { color: var(--gold); margin: 18px 0 8px; font-size: 14px; letter-spacing: 1px; }
+        #help-modal ul { padding-left: 18px; }
+        #help-modal li { color: var(--text); font-size: 12px; opacity: .9; margin-bottom: 5px; line-height: 1.5; }
+        #help-modal li strong { color: var(--gold); }
+
+        /* TOAST */
+        #toasts { position: fixed; bottom: clamp(195px,22vh,250px); left: 50%; transform: translateX(-50%); z-index: 600; display: flex; flex-direction: column-reverse; gap: 7px; pointer-events: none; }
+        .toast { background: var(--panel); color: var(--text); border: 2px solid var(--gold); border-radius: 7px; padding: 9px 20px; font-size: 13px; font-weight: 700; box-shadow: 0 4px 16px rgba(0,0,0,.7); animation: tin .25s ease; text-align: center; white-space: nowrap; }
+        @keyframes tin { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,.3); }
+        ::-webkit-scrollbar-thumb { background: var(--gold-dark); border-radius: 3px; }
+
+        /* INTRO SCREEN */
+        #intro-screen { background: #0d0a06; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
+        .intro-quote { max-width: 560px; padding: 0 30px; font-size: 16px; color: rgba(245,234,221,0.75); font-style: italic; line-height: 2.2; letter-spacing: 1px; margin-bottom: 36px; animation: fadeIn 2s ease both; }
+        .intro-quote em { display: block; font-size: 12px; color: var(--gold-dark); margin-top: 12px; font-style: normal; letter-spacing: 2px; }
+        .intro-premise { max-width: 520px; padding: 0 30px; font-size: 13px; color: rgba(245,234,221,0.6); line-height: 2.2; letter-spacing: 1px; margin-bottom: 50px; animation: fadeIn 2s ease 1.2s both; }
+        .intro-premise strong { color: var(--gold); }
+        .intro-start-btn { animation: fadeIn 2s ease 2.5s both; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* BAD END OVERLAY */
+        .bad-end-wrap { display:flex; flex-direction:column; align-items:center; gap:16px; }
+        .bad-end-title { font-size:22px; font-weight:700; letter-spacing:3px; }
+        .bad-end-story { font-size:14px; color:var(--text); opacity:.92; text-align:center; }
+        .bad-end-story p { margin:0 0 14px; line-height:2.2; }
+        .bad-end-story p:last-child { margin-bottom:0; }
+        .bad-end-reality { font-size:13px; color:rgba(245,234,221,.68); border-top:1px solid rgba(192,160,96,.25); padding-top:14px; text-align:center; font-style:italic; }
+        .bad-end-reality p { margin:0 0 8px; line-height:1.95; }
+        .bad-end-reality p:last-child { margin-bottom:0; }
+
+        /* TUTORIAL MODAL */
+        .tutorial-body { font-size:14px; line-height:2.0; color:var(--text); }
+        .tutorial-body h4 { color:var(--gold); margin:12px 0 4px; font-size:13px; letter-spacing:1px; }
+        .tutorial-body ul { padding-left:18px; }
+        .tutorial-body li { margin-bottom:4px; }
+        .tutorial-body p  { margin-bottom:6px; opacity:.85; }
+        .hand-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 16px; margin:4px 0 8px; }
+        .hand-row  { display:flex; align-items:center; gap:8px; font-size:13px; }
+        .hand-chip { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+        /* DUNGEON SCREEN — VN STYLE */
+        #dungeon-screen {
+            background: linear-gradient(to top, rgba(0,0,0,0.88) 28%, rgba(0,0,0,0.25) 100%),
+                        url('assets/jail.png') center/cover no-repeat;
+            justify-content: flex-end; align-items: stretch; overflow: hidden;
+            transition: background-image 0.6s ease;
+        }
+        #dungeon-sprite-wrap {
+            position: absolute; bottom: 0; left: 50%; transform: translateX(-25%);
+            height: 88vh; width: auto; min-width: 300px;
+            z-index: 1; pointer-events: none; display: flex; align-items: flex-end;
+        }
+        #dungeon-sprite {
+            height: 100%; max-height: 88vh; width: auto; object-fit: contain;
+            filter: drop-shadow(0 0 40px rgba(0,0,0,0.98));
+            transition: opacity 0.45s ease;
+        }
+        #vn-textbox {
+            position: relative; z-index: 10; width: 100%; min-height: 220px;
+            background: rgba(5,2,1,0.93); border-top: 2px solid var(--gold-dark);
+            padding: 22px 80px 28px; flex-shrink: 0;
+        }
+        #vn-speaker {
+            font-size: 14px; font-weight: 700; color: var(--gold); letter-spacing: 3px;
+            background: rgba(5,2,1,0.97); border: 1px solid var(--gold-dark); border-bottom: none;
+            display: inline-block; padding: 4px 20px; border-radius: 4px 4px 0 0;
+            position: absolute; top: -31px; left: 80px; min-width: 90px; text-align: center;
+        }
+        #vn-speaker:empty { display: none; }
+        #dungeon-text { font-size: 15px; line-height: 2.1; color: var(--text); white-space: pre-line; min-height: 60px; }
+        #dungeon-text em { color: rgba(245,234,221,0.55); font-style: italic; }
+        .dungeon-choices { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+        .dungeon-choice-btn {
+            background: rgba(15,8,4,0.65); border: 1px solid rgba(192,160,96,0.35);
+            color: var(--text); font-family: 'Noto Serif TC', serif;
+            font-size: 13px; padding: 10px 18px; border-radius: 5px;
+            cursor: pointer; text-align: left; transition: background .2s, border-color .2s, color .2s;
+        }
+        .dungeon-choice-btn:hover { background: rgba(192,160,96,0.15); border-color: var(--gold); color: var(--gold); }
+
+        /* NIGHT SCREEN — VN BACKGROUND */
+        #night-screen { background: url('assets/backgrond_2.jpg') center/cover no-repeat; }
+
+        /* GOODWILL BADGE */
+        .badge-goodwill .gwt { font-size: 11px; color: #c0e8b0; opacity: 0.85; margin-left: 5px; font-weight: 700; }
+    </style>
+</head>
+<body>
+<audio id="bgm" src="assets/Eternal Shadows.mp3" loop preload="auto"></audio>
+<audio id="voice-ohyou"      src="assets/喔？是你啊.......mp3"                          preload="auto"></audio>
+<audio id="voice-interesting" src="assets/有意思的開始。繼續說。.mp3"                   preload="auto"></audio>
+<audio id="voice-name"        src="assets/莉莉絲。這是我的名字。 今晚的故事，要讓我滿意。.mp3" preload="auto"></audio>
+<audio id="voice-ending"      src="assets/說書人，讓我看看這個故事的結局。.mp3"             preload="auto"></audio>
+<div id="game-board">
+    <div id="bg-overlay"></div>
+
+    <!-- INTRO SCREEN -->
+    <div id="intro-screen" class="screen active">
+        <div class="intro-quote">
+            「所有的祕密都很深，所有的祕密最終都會變成黑暗，這是祕密的本質。」
+            <em>— Cory Doctorow，《Little Brother》</em>
+        </div>
+        <div class="intro-premise">
+            患者莉莉絲，強烈憂鬱症狀。<br>
+            你是<strong>意識連結療法</strong>的實習心理醫師，<br>
+            透過連結器深入患者的意識，<br>
+            在有限的時間內，找到她心中的陰影。<br><br>
+            在這裡，真實的創傷化為了哥德式的幻夢。<br>
+            她說的每一個故事，都是她的秘密。
+        </div>
+        <button class="btn btn-gold intro-start-btn" id="intro-btn">進入意識 →</button>
+    </div>
+
+    <!-- DUNGEON INTRO SCREEN — VN STYLE -->
+    <div id="dungeon-screen" class="screen">
+        <div id="dungeon-sprite-wrap">
+            <img id="dungeon-sprite" src="" alt="" style="opacity:0;">
+            <canvas id="dungeon-reveal-canvas"></canvas>
+            <canvas id="dungeon-dark-canvas"></canvas>
+        </div>
+        <div id="vn-textbox">
+            <div id="vn-speaker"></div>
+            <div id="dungeon-text" class="dungeon-text"></div>
+            <div id="dungeon-choices" class="dungeon-choices"></div>
+        </div>
+    </div>
+
+    <!-- NIGHT SCREEN -->
+    <div id="night-screen" class="screen">
+        <div id="hdr">
+            <div class="badge"><span class="lbl">牌庫</span><span class="val" id="h-deck">60</span></div>
+            <div class="badge"><span class="lbl">重塑</span><span class="val" id="h-reroll">5</span></div>
+            <div class="badge"><span class="lbl">累積</span><span class="val" id="h-score">0</span></div>
+            <div class="badge badge-goodwill"><span class="lbl">好感</span><span class="val" id="h-goodwill">0</span><span class="gwt" id="h-goodwill-tier">陌生人</span></div>
+            <div class="badge" id="clues-badge" style="border-color:#80c8ff;"><span class="lbl" style="color:#80c8ff;">線索</span><span class="val" id="h-clues">0</span></div>
+            <button class="btn" id="help-btn" style="padding:5px 12px;font-size:13px;">? 說明</button>
+            <div id="hdr-center">
+                <div class="day-title" id="h-day">第 1 夜</div>
+                <div class="phase-lbl">故事編織</div>
+            </div>
+            <div id="hdr-right">
+                <button class="toggle-btn" id="toggle-bgm" title="背景音樂">🎵</button>
+                <button class="toggle-btn" id="toggle-voice" title="角色配音">🎤</button>
+                <div class="badge"><span class="lbl">當前</span><span class="val" id="h-stage">選擇主角</span></div>
+            </div>
+        </div>
+
+        <div id="play-area">
+            <div id="phase-area">
+                <div id="prot-display" style="display:none;">
+                    <img id="pd-avatar" class="pd-avatar" src="assets/armel.png" alt="阿梅爾">
+                    <span class="pd-name" id="pd-name">阿梅爾</span>
+                </div>
+                <div id="heroes-display">
+                    <span class="hd-empty">尚未收集英雄牌</span>
+                </div>
+                <div id="phase-row">
+                    <div class="phase-step" id="phase-step-0"><div class="ps-name">起</div><div class="ps-hand" id="ps-hand-0">待出</div><div class="ps-score" id="ps-score-0">—</div></div>
+                    <div class="phase-arrow">→</div>
+                    <div class="phase-step" id="phase-step-1"><div class="ps-name">承</div><div class="ps-hand" id="ps-hand-1">待出</div><div class="ps-score" id="ps-score-1">—</div></div>
+                    <div class="phase-arrow">→</div>
+                    <div class="phase-step" id="phase-step-2"><div class="ps-name">轉</div><div class="ps-hand" id="ps-hand-2">待出</div><div class="ps-score" id="ps-score-2">—</div></div>
+                    <div class="phase-arrow">→</div>
+                    <div class="phase-step" id="phase-step-3"><div class="ps-name">合</div><div class="ps-hand" id="ps-hand-3">待出</div><div class="ps-score" id="ps-score-3">—</div></div>
+                </div>
+            </div>
+            <div id="lily-panel">
+                <div id="lily-frame"></div>
+                <div id="lily-name-lbl">莉莉絲</div>
+                <div id="lily-reaction">靜靜地等待著故事...</div>
+            </div>
+        </div>
+
+        <!-- Lilith night sprite — direct child of night-screen so bottom:0 is the full screen floor -->
+        <div id="lily-sprite-wrap">
+            <canvas id="lily-night-canvas"></canvas>
+        </div>
+
+        <div id="ctrl-bar">
+            <button class="btn btn-narrate" id="play-btn" disabled>出牌（0/1-5）</button>
+            <div class="stage-hint">回合 <span id="phase-num-txt">1</span>/4：<span id="phase-name-txt">起</span>&nbsp;&nbsp;已選 <span id="sel-count-txt">0</span>/1-5 張</div>
+            <button class="btn btn-reroll"  id="reroll-btn">重塑手牌 (5)</button>
+        </div>
+
+        <div id="hand-area-wrap">
+            <div id="hand-area"></div>
+            <div class="deck-wrap">
+                <div class="deck-stack">
+                    <div class="deck-layer"></div><div class="deck-layer"></div><div class="deck-layer"></div>
+                </div>
+                <div class="deck-lbl">牌庫</div>
+                <div class="deck-num" id="deck-cnt">60</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DAY SCREEN -->
+    <div id="day-screen" class="screen">
+        <div id="day-hdr">
+            <h1 id="day-title">第 1 天 — 心靈考古</h1>
+            <p>白晝降臨。帶著昨夜故事的餘溫，在古堡中尋找莉莉絲的線索。</p>
+        </div>
+        <div id="day-body">
+            <div id="energy-panel">
+                <h3>精力</h3>
+                <div class="energy-orbs" id="energy-orbs"></div>
+                <div id="energy-txt">剩餘 <strong id="energy-left">3</strong> 點精力</div>
+                <div id="clue-display"></div>
+                <div id="memory-list"></div>
+            </div>
+            <div id="locations-panel">
+                <h3>探索地點</h3>
+                <div class="loc-grid" id="loc-grid">
+                </div>
+            </div>
+        </div>
+        <div id="day-footer">
+            <button class="btn btn-gold" id="end-day-btn">夜幕降臨 →</button>
+        </div>
+    </div>
+</div>
+
+<!-- SETUP MODAL -->
+<div class="overlay" id="setup-modal">
+    <div class="mpanel">
+        <h2>夜晚降臨...</h2>
+        <p>選擇今晚要講述的主角</p>
+        <div id="setup-protagonists"></div>
+        <div id="setup-heroes" style="margin:12px 0 4px;"></div>
+        <div id="setup-rule-note" style="margin:10px 0 6px;padding:10px 12px;border:1px solid rgba(192,160,96,.35);border-radius:6px;background:rgba(0,0,0,.22);font-size:12px;line-height:1.8;color:rgba(245,234,221,.9);text-align:left;"></div>
+        <button class="btn btn-gold" id="start-btn" style="width:100%;margin-top:10px;">開始講故事</button>
+    </div>
+</div>
+
+<!-- RESULT OVERLAY -->
+<div class="overlay" id="result-overlay">
+    <div class="mpanel">
+        <h2 id="result-title" style="text-align:center;">故事結算</h2>
+        <div style="text-align:center;"><div id="result-hand-type">—</div></div>
+        <div id="score-rows"></div>
+        <div id="choice-area"></div>
+        <div id="reroll-energy-note"></div>
+        <div id="result-btns">
+            <button class="btn" id="to-day-btn" style="border-color:var(--green);color:#7ad094;">迎接白晝</button>
+        </div>
+    </div>
+</div>
+
+<!-- COIN MODAL -->
+<div class="overlay" id="coin-modal">
+    <div class="mpanel">
+        <h3 id="coin-loc-name">圖書室</h3>
+        <div class="cdesc" id="coin-loc-desc">猜測古老硬幣的正反面</div>
+        <div class="coin-row">
+            <button class="coin-btn" data-face="heads" title="正面">☀️</button>
+            <button class="coin-btn" data-face="tails" title="反面">🌙</button>
+        </div>
+        <div id="coin-res"></div>
+        <button class="btn btn-gold" id="coin-close-btn" style="margin-top:16px;display:none;">繼續探索</button>
+    </div>
+</div>
+
+<!-- HELP MODAL -->
+<div class="overlay" id="help-modal">
+    <div class="mpanel">
+        <h2>遊戲說明</h2>
+        <h3>遊戲目標</h3>
+        <p style="color:var(--text);font-size:12px;opacity:.85;">在8個夜晚為莉莉絲編織故事，累積最高分數，第9天迎來最終結局。</p>
+        <h3>故事背景</h3>
+        <p style="color:var(--text);font-size:12px;opacity:.85;line-height:1.8;">你是「意識連結療法」的實習醫師，深入患者<strong>莉莉絲</strong>的意識世界。<br>在她的幻夢裡，真實的創傷化作哥德式古堡：她是被困兩百年的吸血鬼，等待著能讀懂她故事的人。<br>透過8個夜晚的故事陪伴，一頁一頁地走進她封鎖的心房。</p>
+        <h3>特殊事件（白天探索觸發）</h3>
+        <ul>
+            <li>🛏 <strong>臥室（第1天）</strong>：發現布娃娃，解鎖主角「星星王子 阿梅爾」</li>
+            <li>🚪 <strong>長廊（第2天起）</strong>：遇見凝視畫像的莉莉絲，解鎖主角「流浪者 辛德拉」</li>
+            <li>🛏 <strong>臥室（第2天起，好感≥2）</strong>：深夜遇見窗邊的莉莉絲</li>
+            <li>🕯️ <strong>大廳（第3天起，好感≥10）</strong>：翻找木箱，解鎖主角「煉金師 路卡」</li>
+            <li>🌹 <strong>花園（第4天起，好感≥20）</strong>：挖出斷劍，解鎖主角「騎士 雅莎」</li>
+        </ul>
+        <h3>夜晚 — 故事編織</h3>
+        <ul>
+            <li>選擇今晚的主角卡（阿梅爾／辛德拉／路卡／雅莎）</li>
+            <li>每夜分為「起・承・轉・合」<strong>4個回合</strong></li>
+            <li>每回合可選 1~5 張手牌，按「出牌」計算牌型得分</li>
+            <li>出牌後自動補牌至7張，進入下一回合</li>
+            <li>四段得分合計後，乘以主角倍率，得出本夜總分</li>
+        </ul>
+        <h3>重塑機會（每夜5次）</h3>
+        <ul>
+            <li>出牌前選1-2張手牌，消耗1次並重抽（不會消耗本回合出牌機會）</li>
+            <li><strong>剩餘重塑次數 → 次日額外精力</strong></li>
+        </ul>
+        <h3>牌型加成</h3>
+        <ul>
+            <li><strong>同花順</strong> +120：同色連續，故事牌嚴格遞增</li>
+            <li><strong>鐵支</strong> +80：四張相同數字</li>
+            <li><strong>葫蘆</strong> +60：三張+兩張相同</li>
+            <li><strong>順子</strong> +50：五張連續，故事牌嚴格遞增</li>
+            <li><strong>同花</strong> +40：五張同色</li>
+            <li><strong>三條</strong> +30：三張相同</li>
+            <li><strong>兩對</strong> +20 ／ <strong>一對</strong> +10</li>
+        </ul>
+        <h3>角色加成與倍率</h3>
+        <ul>
+            <li><strong>阿梅爾 ×1.5</strong>：同花+50／準同花+25</li>
+            <li><strong>辛德拉 ×2.0</strong>：順子+60／準順子+30</li>
+            <li><strong>路卡 ×2.5</strong>：葫蘆+70／三條+35</li>
+            <li><strong>雅莎 ×3.0</strong>：鐵支+100／三條+40</li>
+            <li><strong>同花順</strong>：觸發阿梅爾＋辛德拉雙重角色加成</li>
+        </ul>
+        <h3>計分公式</h3>
+        <p style="color:var(--text);font-size:12px;opacity:.85;">（基礎分 + 牌型加成 + 角色加成）× 角色倍率 × (1 + 記憶碎片%)</p>
+        <h3>白天 — 心靈考古（莉莉絲側寫）</h3>
+        <ul>
+            <li>精力 = 3（基礎）+ 前夜剩餘重塑次數</li>
+            <li>探索地點時，發現莉莉絲留下的<strong>行為痕跡</strong>，選擇如何回應：</li>
+            <li>✍ <strong>記錄下來</strong> → +1 線索點（今晚故事 +12 分，用完歸零）</li>
+            <li>🪬 <strong>帶走物品</strong> → +記憶碎片（永久 +1/+5/+10% 加成）</li>
+            <li>🤍 <strong>保持原樣</strong> → +1 好感度</li>
+        </ul>
+        <br>
+        <button class="btn btn-gold" id="close-help-btn" style="width:100%;">關閉</button>
+    </div>
+</div>
+
+<!-- TUTORIAL MODAL -->
+<div class="overlay" id="tutorial-modal">
+    <div class="mpanel" style="max-width:520px;">
+        <h2 style="text-align:center;margin-bottom:12px;">織夢室的規則</h2>
+        <div class="tutorial-body">
+            <p>莉莉絲每晚都要求你講一個故事，以換取你的性命。用<strong>卡牌組合</strong>來構築故事，再以牌型與分數打動她。</p>
+            <h4>基本操作</h4>
+            <ul>
+                <li>每夜分為「起・承・轉・合」<b>4個回合</b>，每回合可出 1~5 張牌</li>
+                <li><b>點擊牌卡選取 1~5 張</b>，再按「<b>出牌</b>」計算該回合得分</li>
+                <li>出牌後自動補牌至7張，繼續下一回合</li>
+                <li>也可以<b>選1-2張牌</b>後按「<b>重塑</b>」換掉選中的牌</li>
+                <li>4個回合全部完成後，四段得分加總並乘以主角倍率，得出本夜總分</li>
+            </ul>
+            <h4>牌型加成（由高至低）</h4>
+            <div class="hand-grid">
+                <div class="hand-row"><div class="hand-chip" style="background:#ffd700"></div>同花順（最高）</div>
+                <div class="hand-row"><div class="hand-chip" style="background:#ff8080"></div>鐵支</div>
+                <div class="hand-row"><div class="hand-chip" style="background:#c080ff"></div>葫蘆</div>
+                <div class="hand-row"><div class="hand-chip" style="background:#80c8ff"></div>順子</div>
+                <div class="hand-row"><div class="hand-chip" style="background:#80ffb0"></div>同花</div>
+                <div class="hand-row"><div class="hand-chip" style="background:#ffc080"></div>三條 / 兩對 / 一對</div>
+            </div>
+            <h4>今晚的目標</h4>
+            <p>每一夜都有<strong>最低生存分數</strong>。未達到 → 被莉莉絲殺死（Bad End）。<br>分數愈高，好感度上升愈多；好感度決定最終結局。</p>
+            <p style="color:#e07070;font-size:12px;">⚠ 每夜門檻都會提高——她的耐心越來越少。</p>
+        </div>
+        <button class="btn btn-gold" id="tutorial-close-btn" style="width:100%;margin-top:16px;">明白了，開始審問</button>
+    </div>
+</div>
+
+<!-- DECK VIEWER MODAL -->
+<div class="overlay" id="deck-modal">
+    <div class="mpanel" style="max-width:580px;max-height:80vh;overflow-y:auto;" onclick="event.stopPropagation()">
+        <h2 style="text-align:center;margin-bottom:4px;">牌庫總覽</h2>
+        <div id="deck-viewer-cnt" style="text-align:center;font-size:12px;color:rgba(245,234,221,.55);margin-bottom:12px;"></div>
+        <div id="deck-viewer-grid" style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;"></div>
+        <div style="text-align:center;margin-top:18px;">
+            <button class="btn btn-gold" id="deck-modal-close">關閉</button>
+        </div>
+    </div>
+</div>
+
+<!-- DECK VIEWER MODAL -->
+<div class="overlay" id="deck-modal">
+    <div class="mpanel" style="max-width:580px;max-height:80vh;overflow-y:auto;" onclick="event.stopPropagation()">
+        <h2 style="text-align:center;margin-bottom:4px;">牌庫總覽</h2>
+        <div id="deck-viewer-cnt" style="text-align:center;font-size:12px;color:rgba(245,234,221,.55);margin-bottom:12px;"></div>
+        <div id="deck-viewer-grid" style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;"></div>
+        <div style="text-align:center;margin-top:18px;">
+            <button class="btn btn-gold" id="deck-modal-close">關閉</button>
+        </div>
+    </div>
+</div>
+
+<!-- EVENT MODAL — VN STYLE -->
+<div class="overlay vn-overlay" id="event-modal">
+    <div id="ev-sprite-wrap">
+        <img id="ev-sprite" src="" alt="" style="opacity:0;">
+        <canvas id="lilith-canvas"></canvas>
+        <canvas id="lilith-reveal-canvas"></canvas>
+        <canvas id="lilith-dark-canvas"></canvas>
+        <canvas id="lilith-sleepwear-canvas"></canvas>
+    </div>
+    <video id="lilith-vid" src="assets/lilth_normal.mp4" loop muted playsinline style="display:none;" crossorigin="anonymous"></video>
+    <video id="lilith-reveal-vid" src="assets/lilith_showing_her_face.mp4" muted playsinline style="display:none;" crossorigin="anonymous"></video>
+    <video id="lilith-dark-vid" src="assets/lilith_with_dark_suit.mp4" loop muted playsinline style="display:none;" crossorigin="anonymous"></video>
+    <video id="lilith-sleepwear-vid" src="assets/lilth_sleepwear.mp4" loop muted playsinline style="display:none;" crossorigin="anonymous"></video>
+    <div id="ev-vn-box">
+        <div id="ev-speaker"></div>
+        <div id="ev-scene" class="ev-scene"></div>
+        <div id="ev-dialogues"></div>
+        <div id="ev-choices" class="ev-choices"></div>
+        <div id="ev-close-row" style="display:none;">
+            <button class="btn btn-gold" id="ev-close-btn">繼續 ▶</button>
+        </div>
+    </div>
+</div>
+
+<div id="toasts"></div>
+<div id="scene-transition"></div>
+
+<!-- ── DEBUG PANEL (press D to toggle) ───────────────────── -->
+<div id="debug-panel" style="
+    display:none; position:fixed; top:12px; left:12px; z-index:99999;
+    background:rgba(0,0,0,0.88); border:1px solid #c0a040; border-radius:8px;
+    padding:14px 18px; color:#f5eadd; font:13px/1.8 monospace; min-width:320px;
+    box-shadow:0 4px 24px rgba(0,0,0,.8);">
+  <div style="font-weight:700;color:#c0a040;margin-bottom:8px;">🎛 Sprite 調整面板 &nbsp;<span style="font-size:11px;opacity:.6;">[D] 關閉</span></div>
+  <table style="width:100%;border-collapse:collapse;">
+    <tr><td colspan="2" style="color:#c0a040;padding-top:6px;font-weight:700;">Reveal / Dark Suit (Event Modal)</td></tr>
+    <tr>
+      <td>高度 vh</td>
+      <td><input id="dbg-ev-h" type="range" min="40" max="130" step="1" value="88" style="width:140px;">
+          <span id="dbg-ev-h-v">88</span></td>
+    </tr>
+    <tr>
+      <td>右移 px (right)</td>
+      <td><input id="dbg-ev-r" type="range" min="-300" max="300" step="4" value="0" style="width:140px;">
+          <span id="dbg-ev-r-v">0</span></td>
+    </tr>
+    <tr>
+      <td>下移 px (bottom)</td>
+      <td><input id="dbg-ev-b" type="range" min="-200" max="200" step="4" value="0" style="width:140px;">
+          <span id="dbg-ev-b-v">0</span></td>
+    </tr>
+    <tr><td colspan="2" style="color:#c0a040;padding-top:10px;font-weight:700;">Reveal / Dark Suit (Dungeon)</td></tr>
+    <tr>
+      <td>高度 vh</td>
+      <td><input id="dbg-dg-h" type="range" min="40" max="130" step="1" value="88" style="width:140px;">
+          <span id="dbg-dg-h-v">88</span></td>
+    </tr>
+    <tr>
+      <td>水平偏移 px</td>
+      <td><input id="dbg-dg-x" type="range" min="-400" max="400" step="4" value="0" style="width:140px;">
+          <span id="dbg-dg-x-v">0</span></td>
+    </tr>
+    <tr>
+      <td>下移 px (bottom)</td>
+      <td><input id="dbg-dg-b" type="range" min="-200" max="200" step="4" value="0" style="width:140px;">
+          <span id="dbg-dg-b-v">0</span></td>
+    </tr>
+  </table>
+  <button onclick="_dbgCopy()" style="margin-top:10px;width:100%;padding:6px;background:#c0a040;border:none;border-radius:4px;color:#000;font-weight:700;cursor:pointer;">📋 複製數值</button>
+  <div id="dbg-copied" style="font-size:11px;color:#7ad094;margin-top:4px;min-height:16px;"></div>
+</div>
+
+<script>
+// ── Debug panel ──────────────────────────────────────────────
+(function(){
+    const panel=document.getElementById('debug-panel');
+    document.addEventListener('keydown',e=>{
+        if(e.key==='d'||e.key==='D'){
+            panel.style.display=panel.style.display==='none'?'block':'none';
+        }
+    });
+    function bind(sliderId,labelId,apply){
+        const s=document.getElementById(sliderId);
+        const l=document.getElementById(labelId);
+        s.addEventListener('input',()=>{ l.textContent=s.value; apply(Number(s.value)); });
+    }
+    bind('dbg-ev-h','dbg-ev-h-v',v=>{
+        ['lilith-reveal-canvas','lilith-dark-canvas'].forEach(id=>{
+            const c=document.getElementById(id); if(c) c.style.height=v+'vh';
+        });
+    });
+    bind('dbg-ev-r','dbg-ev-r-v',v=>{
+        ['lilith-reveal-canvas','lilith-dark-canvas'].forEach(id=>{
+            const c=document.getElementById(id); if(c) c.style.right=v+'px';
+        });
+    });
+    bind('dbg-ev-b','dbg-ev-b-v',v=>{
+        ['lilith-reveal-canvas','lilith-dark-canvas'].forEach(id=>{
+            const c=document.getElementById(id); if(c) c.style.bottom=v+'px';
+        });
+    });
+    bind('dbg-dg-h','dbg-dg-h-v',v=>{
+        ['dungeon-reveal-canvas','dungeon-dark-canvas'].forEach(id=>{
+            const c=document.getElementById(id); if(c) c.style.height=v+'vh';
+        });
+    });
+    bind('dbg-dg-x','dbg-dg-x-v',v=>{
+        ['dungeon-reveal-canvas','dungeon-dark-canvas'].forEach(id=>{
+            const c=document.getElementById(id); if(c) c.style.transform=`translateX(calc(-50% + ${v}px))`;
+        });
+    });
+    bind('dbg-dg-b','dbg-dg-b-v',v=>{
+        ['dungeon-reveal-canvas','dungeon-dark-canvas'].forEach(id=>{
+            const c=document.getElementById(id); if(c) c.style.bottom=v+'px';
+        });
+    });
+    window._dbgCopy=function(){
+        const ev={
+            height: document.getElementById('dbg-ev-h').value+'vh',
+            right:  document.getElementById('dbg-ev-r').value+'px',
+            bottom: document.getElementById('dbg-ev-b').value+'px',
+        };
+        const dg={
+            height: document.getElementById('dbg-dg-h').value+'vh',
+            offsetX:document.getElementById('dbg-dg-x').value+'px',
+            bottom: document.getElementById('dbg-dg-b').value+'px',
+        };
+        const txt=`Event Modal → height:${ev.height} right:${ev.right} bottom:${ev.bottom}\nDungeon    → height:${dg.height} offsetX:${dg.offsetX} bottom:${dg.bottom}`;
+        navigator.clipboard.writeText(txt).catch(()=>{});
+        const lbl=document.getElementById('dbg-copied');
+        lbl.textContent='✓ 已複製！把這段文字貼給 Copilot';
+        setTimeout(()=>lbl.textContent='',3000);
+    };
+})();
+</script>
+
+<script>
+class StoryCard {
+    constructor(c, n) { this.color = c; this.number = n; }
+}
+class HeroCard {
+    constructor(id, name, desc, triggers, bonus, icon) {
+        this.id = id; this.name = name; this.desc = desc;
+        this.triggers = triggers; // array of hand type strings that activate this hero
+        this.bonus = bonus; this.icon = icon;
+    }
+}
+
+// 英雄牌定義：效果可疊加，由高到低的牌型自動觸發更低條件
+const HEROES = {
+    armel:  new HeroCard('armel',  '阿梅爾',   '同花加成', ['同花','同花順'],           50, '⭐'),
+    xindra: new HeroCard('xindra', '辛德拉',   '順子加成', ['順子','同花順'],           60, '🔍'),
+    luca:   new HeroCard('luca',   '盧卡',     '三條加成', ['三條','葫蘆','鐵支'],     35, '⚗️'),
+    winter: new HeroCard('winter', '冬之女王', '鐵支加成', ['鐵支'],                   100, '❄️'),
+};
+const PROTAGONISTS = {
+    armel:  {id:'armel',  name:'阿梅爾',  img:'armel.png',  desc:'星星王子'},
+    cindra: {id:'cindra', name:'辛德拉',  img:'cindra.png', desc:'流浪者'},
+    luca:   {id:'luca',   name:'路卡',    img:'luca.png',   desc:'煉金師'},
+    asha:   {id:'asha',   name:'雅莎',    img:'asha.png',   desc:'騎士'},
+};
+const BASE_BONUS = {'同花順':120,'鐵支':80,'葫蘆':60,'順子':50,'同花':40,'三條':30,'兩對':20,'一對':10,'無':0,'準同花':0,'準順子':0};
+const HAND_CLR   = {'同花順':'#ffd700','鐵支':'#ff8080','葫蘆':'#c080ff','順子':'#80c8ff','同花':'#80ffb0','三條':'#ffc080','兩對':'#f0f0f0','一對':'#c0c0c0','無':'#808080','準同花':'#80ffb0','準順子':'#80c8ff'};
+const MEMORIES = [
+    {name:'血色玫瑰花瓣',  rarity:'一般',bonus:1},{name:'破碎的鏡子碎片',rarity:'一般',bonus:1},
+    {name:'褪色的家族信件',rarity:'稀有',bonus:5},{name:'神秘的黑色羽毛',rarity:'稀有',bonus:5},
+    {name:'古老的血契協議',rarity:'傳說',bonus:10}
+];
+const INSPIRES = [
+    {name:'鎖定直覺',desc:'鎖定1張手牌，重塑時不替換'},
+    {name:'色彩共鳴',desc:'保證抽到主角顏色的牌'},
+    {name:'雙重機遇',desc:'下次重塑免費'}
+];
+const LOCS = {library:{name:'圖書室'},garden:{name:'月光花園'},attic:{name:'閣樓'},portrait:{name:'肖像畫廊'}};
+const NIGHT_TARGETS = {
+    1:{survive:80,  good:130, perfect:200},
+    2:{survive:95,  good:155, perfect:240},
+    3:{survive:115, good:185, perfect:290},
+    4:{survive:135, good:225, perfect:350},
+    5:{survive:165, good:275, perfect:430},
+    6:{survive:200, good:335, perfect:520},
+    7:{survive:245, good:405, perfect:625},
+    8:{survive:295, good:490, perfect:760}};
+const GOODWILL_TIERS = [
+    {min:0,  tier:'陌生人'},{min:10,tier:'熟人'},{min:25,tier:'朋友'},
+    {min:45, tier:'知己'}, {min:70,tier:'眷友'},{min:100,tier:'愛人'}];
+const DUNGEON_LOCS = {
+    ceiling:{name:'天花板角落', icon:'🏛️', desc:'精編的石頭天使雕飾，年代久遠'},
+    bread:  {name:'早晨麥包',   icon:'🍞', desc:'雖不算新鮮，但品質不差'},
+    floor:  {name:'地板地磚',   icon:'🪨', desc:'厚厚的灰塵與蜘蛛網'},
+    corpse: {name:'左側乾屍堆', icon:'💀', desc:'沉默的見證者，脖子處有齒痕'},
+    window: {name:'牢房鐵窗',   icon:'🔒', desc:'向外望去，只有深沉的黑暗'}};
+const CASTLE_LOCS = {
+    bedroom: {name:'你的臥室', icon:'🛏️',  desc:'窗外是蓊鬱的森林'},
+    bathroom:{name:'浴室',     icon:'🛁',  desc:'華麗的木製澡盆，積滿灰塵'},
+    library: {name:'書房',     icon:'📚',  desc:'塵封的藏書與未完成的筆記'},
+    hall:    {name:'大廳',     icon:'🕯️',  desc:'奢華的廢墟，有巨大的圓桌'},
+    corridor:{name:'房間長廊', icon:'🚪',  desc:'無盡延伸，令人心悸'},
+    gate:    {name:'玄關大門', icon:'⚜️',  desc:'東洋文物與門前雕像'},
+    garden:  {name:'花園',     icon:'🌹',  desc:'枯萎的玫瑰，月光下的秘密'}};
+const PIPS  = {'紅':'♦','黃':'♣','藍':'♠','白':'◇'};
+
+// ── Night dialogue data ────────────────────────────────────
+// keyed by [day][level]  level: 'low'|'mid'|'high'
+// narrator = 說書人旁白（每夜成功後顯示於結算畫面）
+const NIGHT_DIALOGUES = {
+    1: {
+        narrator: '說書人翻開故事書的第一頁，低聲開口。\n\n在一本沒有署名的故事裡，有一個名叫阿梅爾的王子。\n他的王國很小，但每一條街都有人唱歌。\n父親會在夜裡給他講星星的故事，母親把每一頓晚餐都做得像是節日。\n那是一種幸福——那種你以為理所當然，所以從未好好記住的幸福。\n\n然後，冰風暴來了。\n一夜之間。\n父母、人民、街道、歌聲⋯⋯全都覆蓋在永恆的冰霜之下。\n他站在廢墟之中，第一次明白：童話也會碎裂。\n而最殘酷的，是它碎裂之前，曾經那麼完整。',
+        low:  '「冰風暴。很方便的借口，用來解釋為什麼只有他活下來。」\n她諷刺地說，卻沒有離開。',
+        mid:  '「星星王子阿梅爾⋯⋯好熟悉的名字。\n不過這種純真的人，不會像故事說的那樣永遠順遂。」\n她低聲喃喃，若有所思。',
+        high: '「⋯⋯說得不錯。\n雖然這種純真早就不存在了，但今晚暫時放你一馬。」',
+        fail: '「⋯⋯就這樣？這種故事到處都是。」\n她冷漠地轉身，像是連看都不屑看你一眼。',
+        choiceLevel: 'good',
+        choices: [
+            {label:'A. 「也許正因為這樣，他才一定要走下去。」', gwBonus:1, reaction:'「哼。」她輕哼一聲，但嘴角微微動了一下。'},
+            {label:'B. 沉默，輕輕翻頁。', gwBonus:2, reaction:'她注視著說書人，久久沒有移開視線。\n沒有說任何話，只是靜靜地看著。'}
+        ]
+    },
+    2: {
+        narrator: '阿梅爾離開廢墟，踏入了一座從未見過的城市。\n這裡沒有童話，只有蒸汽、齒輪與冰冷的現實。\n深夜的旅館走廊，一聲短促的慘叫劃破寂靜。\n\n在封鎖線外，他遇見了一名手持放大鏡的年輕女子。\n她的名字是辛德拉，人稱「真相小姐」。\n她說：「世上沒有完美的謊言。只要仔細觀察，真相總會留下氣味。」',
+        low:  '「理性、務實、冷靜。這種人最無聊了。」\n她打了個哈欠，轉頭看向別處。',
+        mid:  '「『真相小姐』⋯⋯真相是什麼？找到了又怎樣。」\n她若有所思地看向窗外，沉默很久。',
+        high: '「怎麼會有人天真到像阿梅爾那樣，還一直堅持著⋯⋯」\n她停頓了很久，聲音微微顫抖：「這種人真的存在嗎？」',
+        fail: '「旅者的故事，要比旅者本身更有魅力才行。」\n她拂開銀白的髮絲，不再看你。「你讓我失望了。」',
+        choiceLevel: 'survive',
+        choices: [
+            {label:'A. 「真相，就算會讓人痛苦，也是真的發生過的事。」', gwBonus:2, reaction:'莉莉絲轉頭看著說書人，眼神有些複雜，沉默了很久。'},
+            {label:'B. 「也許有人寧願不知道。」', gwBonus:1, reaction:'「當然。」她低聲說，若有所思地轉頭看向窗外。'}
+        ]
+    },
+    3: {
+        narrator: '辛德拉將紙上那些被草率歸檔的命案串成一條線。\n那些女子，因為身分而被遺忘。但辛德拉沒有忘記。\n\n兇手總在深夜出現，挑選獨自行走的人。\n現場被仔細清理，如同完成了某種儀式。\n\n「這不是失控。」辛德拉說，「這是重複的程序。\n他認為自己在做某件神聖的事。」',
+        low:  '「謀殺案。很平常。」她冷淡地說，\n「繼續說，或者算了。」',
+        mid:  '「⋯⋯每個人死的方式都不同，卻被同一人歸類為儀式。」\n她停頓，「他覺得自己很神聖嗎？」',
+        high: '「那些女孩⋯⋯」\n莉莉絲的聲音突然低下去，「因為身分，所以沒有人想找真相。」\n長時間的沉默。「辛德拉沒有放棄。」',
+        fail: '「一個連線索都串不起來的說書人。」她冷冷地說，\n「你確定你在說故事，而不是在隨意拼湊？」',
+        choiceLevel: 'perfect',
+        choices: [
+            {label:'A. 「我只是在說故事。」', gwBonus:1, reaction:'莉莉絲盯著說書人看了很久，什麼話也沒說。'},
+            {label:'B. 「因為有些人值得被記住。」', gwBonus:3, reaction:'她把頭轉開，聲音微微沙啞：「繼續說。」'}
+        ]
+    },
+    4: {
+        narrator: '真相終於現身。\n那個面具之下，是一張俊美的臉——鐘錶店老闆路卡。\n\n他坦白了一切。不是因為悔恨，而是因為他等了很久，等到一個值得傾訴的人。\n「那不是殺戮，那是獻禮。」他說，聲音平靜得令人不寒而慄。\n\n辛德拉替他戴上項圈，阿梅爾看著他們兩人。\n三個彼此不信任的人，就這樣走向了同一場暴風雪。',
+        low:  '「路卡⋯⋯」她若有所思地沉默，\n「把殘忍包裝成信仰，這種事不稀奇。」',
+        mid:  '「為了雅莎？」\n莉莉絲的手微微收緊，「那個名字⋯⋯」\n她沒有說完，轉過了臉。',
+        high: '「他們三個，沒有一個信任另一個，卻還是往前走。」\n她輕哼了一聲：「笨蛋。」\n但嘴角動了一下。',
+        fail: '「三個人，互相不信任，故事卻說得這麼稀薄？」\n「也許，是說書人自己也不相信這個故事。」',
+        choiceLevel: 'survive',
+        choices: [
+            {label:'A. 「三個彼此不信任的人，也可以成為同伴。」', gwBonus:2, reaction:'莉莉絲冷哼：「『同伴』。這種詞真天真。」她停頓了一下。「但我想繼續聽。」'},
+            {label:'B. 「路卡沒有悔恨——但他選擇跟著他們走。也許那就夠了。」', gwBonus:3, reaction:'她轉過臉，表情有一刻的猶豫。「⋯⋯夠了嗎。」她重複著這兩個字，像是說給自己聽的。'}
+        ]
+    },
+    5: {
+        narrator: '三人踏入冰雪封鎖的山脈，怪物不斷。\n但最可怕的不是怪物，是那些在風雪中出現的幻影。\n\n阿梅爾看見的，是星星王國的廢墟：\n「如果你更勇敢一點，他們會不會還活著？」\n\n辛德拉聽見的，是所有未解案件的翻頁聲：\n「妳追求的真相，真的完整嗎？」\n\n路卡看見的，是每一張他傷害過的臉：\n「你真的相信自己是在獻祭，還是你只是喜歡殺戮？」\n\n沒有人回答。他們只是繼續前進。\n因為一旦停下來，就會被自己的影子吞沒。',
+        low:  '「幻影。」她淡漠地說，\n「看見自己不想看的東西，這種事沒什麼特別。」',
+        mid:  '「可是他們沒有停下來。」莉莉絲若有所思，\n「就算不知道答案，也繼續走？」',
+        high: '「『一旦停下來，就會被影子吞沒。』」\n她輕聲重複這句話，然後久久沉默。\n「⋯⋯我知道那是什麼感覺。」',
+        fail: '「連幻影都看不清楚。」她搖了搖頭，\n「走在那條路上的人，值得更好的故事。」',
+        choiceLevel: 'perfect',
+        choices: [
+            {label:'A. 「繼續走，哪怕不知道答案。」', gwBonus:2, reaction:'「哪怕不知道。」她低聲重複，「說書人，你說話有時候很惱人。」她卻沒有移開視線。'},
+            {label:'B. 「因為答案根本不重要——重要的是有人陪著走。」', gwBonus:4, reaction:'她沉默很久。燭火把她臉側的陰影拉得很長。「⋯⋯這種話，我從前聽過一次。」'}
+        ],
+        specialReveal: '莉莉絲轉回身，表情罕見地複雜。\n「阿梅爾的幻影問他：『如果你更勇敢，他們會不會活著？』」\n「⋯⋯那不是問題，那是折磨。」\n「他明明已經盡力了。」\n她說完這句，自己也沉默了下去。'
+    },
+    6: {
+        narrator: '終於，在無數日夜之後，他們抵達了冰雪王國的大門。\n\n高牆由晶瑩剔透的冰石構成。\n城門上刻著天秤、面具與無數閉上的眼睛。\n整座王國沒有一絲人聲，只有風穿過冰柱時的低鳴。\n\n大門，緩緩開啟。',
+        low:  '莉莉絲沉默很久。\n「繼續說。」她的聲音比平時更輕。',
+        mid:  '「天秤。」莉莉絲喃喃。「閉著的眼睛。」\n她沒有解釋為什麼，只是重複著這幾個字。',
+        high: '「一個沒有人聲的王國⋯⋯」她的聲音很低，\n「這樣不是更好嗎？沒有聲音，就沒有哭泣。\n沒有動靜，就沒有爭吵。」\n她停頓，「⋯⋯對嗎？」',
+        fail: '「就差那麼一點，就差那麼一點。」她輕聲說，\n語氣聽不出是遺憾還是冷漠。',
+        choiceLevel: 'perfect',
+        choices: [
+            {label:'A. 「我知道。但我想讓你自己說出來。」', gwBonus:3, reaction:'莉莉絲久久沒有回應。\n最後只說：「討厭。」'},
+            {label:'B. 「不知道。我只是說書人。」', gwBonus:2, reaction:'「說謊。」她輕哼一聲，轉過了臉。'}
+        ]
+    },
+    7: {
+        narrator: '冬之女王雅莎站在冰宮的核心。\n高聳如巨人，臉覆白色面具，身後是象徵審判的天秤。\n\n她說：「一直以來，我們四個，都是同一個人。」\n\n阿梅爾，是她相信過的童話。\n辛德拉，是她追求真相的自己。\n路卡，是她不敢承認的慾望與陰影。\n雅莎，是她為了不再受傷，而親手打造的審判與冰冷。\n\n三人的聲音重疊在一起：\n「從頭到尾，唯一在逃避的人，是妳，雅莎。」\n\n冰宮開始碎裂。',
+        low:  '「⋯⋯你說的這個故事⋯⋯」\n她沒有哭，但呼吸變得急促。「這是誰的故事？」',
+        mid:  '莉莉絲轉身，眼眶泛紅：\n「情感只會帶來毀滅。幻想只會帶來悲嘆。\n難道雅莎說的不對嗎？」',
+        high: '莉莉絲滑落在椅子上，聲音破碎：\n「⋯⋯把過去美好的回憶全部丟掉，\n把曾經相信過的幸福全部凍結⋯⋯」\n「這樣，真的不能得救嗎？」',
+        fail: '「停下來。」她站起來，背對你。\n「我說——停下來。」聲音顫抖，\n「今晚的故事，到此為止。」',
+        choiceLevel: 'good',
+        choices: [
+            {label:'A. 「雅莎說的沒有錯。但她選擇的方式，只是讓自己更孤獨。」', gwBonus:3, reaction:'莉莉絲沉默片刻，然後輕輕地說：「我知道。」'},
+            {label:'B. 「情感讓人受傷，但也是唯一能讓人感覺自己還活著的東西。」', gwBonus:4, reaction:'她的眼眶泛紅，久久沒有說話。\n最後，她把臉轉向窗外，遮住了那個表情。'},
+            {label:'C. 沉默，把書頁翻到最後一章。', gwBonus:2, reaction:'莉莉絲注視著說書人，喃喃低語：「你還要繼續說？」'}
+        ],
+        specialReveal: '莉莉絲說：「如果我能重來一次⋯⋯」\n她的話沒有說完。\n說書人輕輕把書放在她面前——那是一本空白的故事書。\n「這一次，換妳來寫。」\n她凝視著那本書，久久沒有動。'
+    },
+    8: {
+        narrator: '所有的角色、所有的場景、所有的悲劇與謎團，\n都化作碎片，散落在黑暗中。\n\n最後，只剩下一片安靜的空白。\n空白之中，坐著一名說書人。\n而在說書人的面前，是哭泣的公主莉莉絲。\n\n說書人沒有責備她，也沒有要求她立刻停止哭泣。\n只是輕輕合上手中的故事書，問她：\n「那麼，這一次，妳想怎麼繼續寫下去？」',
+        low:  '「最後一夜了。」她輕聲說，\n眼神掠過你，帶著某種你說不清楚的情緒。\n「說完吧。把故事說完。」',
+        mid:  '她靜靜地聽著，說完的那一刻她才緩緩地說：\n「謝謝你⋯⋯把故事講到最後。」\n這是她第一次說謝謝。',
+        high: '她沉默了很久。燭火在她臉側搖曳，\n讓你第一次看清楚她臉上的表情——那是某種接近脆弱的東西。\n「我記得了，」她最後說，聲音微微顫抖，「我全部都記得了。」',
+        fail: '「就這樣結束了嗎。」\n她的語氣聽不出悲喜，像是說給虛空聽的。\n「八個夜晚。最後還是差了那麼一點。」',
+        choiceLevel: 'good',
+        choices: [
+            {label:'A. 「只要妳願意，故事可以繼續。」', gwBonus:3, reaction:'她抬起頭，眼神第一次沒有掩藏任何東西。「說書人⋯⋯你真的是個很奇怪的人。」'},
+            {label:'B. 沉默，把空白故事書放在她手裡。', gwBonus:5, reaction:'她低頭看著那本書，很久沒有說話。手指輕輕撫過封面，像是在確認某件東西是真實存在的。'},
+            {label:'C. 「這個故事，從一開始就是妳的。」', gwBonus:4, reaction:'她閉上眼睛。「⋯⋯我知道。」聲音很輕，卻是今晚最清醒的一句話。'}
+        ]
+    }
+};
+// fallback for days beyond defined
+const NIGHT_DIALOGUE_DEFAULT = {
+    narrator: '',
+    low:  '「⋯⋯今晚的故事有些平淡。」她冷冷地轉身。',
+    mid:  '「還算有趣，但還不夠。」她淡淡地說道。',
+    high: '「⋯⋯不錯。」一個字，卻藏著難以察覺的溫度。',
+    fail: '「⋯⋯這是你最後一個故事了。」她的聲音冰冷。'
+};
+
+// ── Story Events ───────────────────────────────────────────
+// Each key = eventFlag. Properties: loc, condition(g), scene, dialogues, choices, closeLabel, onClose
+const STORY_EVENTS = {
+    day1_amell: {
+        loc: 'bedroom',
+        condition: g => g.currentDay===1,
+        bg: 'hall.png', sprite: null,
+        scene: '清晨的晨光從窗縫篩漏而下。\n你在臥室中打發時間，翻找著這個陌生的房間。\n在床頭單薄的枕頭底下，你摸到了一個布娃娃——上面繡著《星星王子 阿梅爾》。\n裡面夾著幾張手寫的紙頁，記載著一個純真少年踏上旅途的故事。',
+        dialogues: [],
+        choices: [],
+        closeLabel: '收下娃娃，準備今晚講述',
+        onClose: () => {
+            G.addHero('armel');
+            G.unlockProtagonist('armel');
+            renderDay();
+        }
+    },
+    day2_corridor: {
+        loc: 'corridor',
+        condition: g => g.currentDay>=2 && g.phase==='castle',
+        bg: 'hall.png', sprite: null,
+        scene: '長廊在兩側燭光下無盡延伸，令人心悸。\n走到一半，你看見長廊盡頭，莉莉絲站在那裡，背對著你，正凝視著牆上一幅褪色的畫像。\n她沒有發現你。\n畫像旁的壁架上，靜靜躺著一本羊皮封面的旅行日誌，封面燙金寫著《流浪者 辛德拉》。',
+        dialogues: [],
+        choices: [
+            {
+                label: '「⋯⋯妳在這裡。」（輕聲開口）',
+                onPick: () => {
+                    G.goodwill+=1; G.updateGoodwillTier();
+                    showEvent({
+                        scene: '',
+                        dialogues: [
+                            {speaker:'莉莉絲', words:'她微微一顫，慢慢轉過身。\n「⋯⋯你不睡覺，到處亂跑？」\n語氣雖然淡漠，卻沒有平日的鋒芒。\n「那本書你可以拿去。裡面的故事，我以前讀過很多次了。」'},
+                            {speaker:'莉莉絲', words:'她轉回去看著畫像，聲音壓得很低：\n「那個旅者說，走得夠遠就能忘記出發的理由。」\n短暫的沉默。\n「他說錯了。」'}
+                        ],
+                        choices: [],
+                        closeLabel: '（拿起日誌，悄悄離開）',
+                onClose: () => {
+                    G.addHero('xindra');
+                    G.unlockProtagonist('cindra');
+                    renderDay();
+                }
+                    });
+                }
+            },
+            {
+                label: '（靜靜拿走日誌，不打擾她）',
+                onPick: () => {
+                    showEvent({
+                        bg: 'hall.png', sprite: null,
+                        scene: '你悄悄走過去拿走了那本日誌，轉身離去。\n臨走前，你回頭看了一眼——莉莉絲仍然一動不動地凝視著畫像。',
+                        dialogues: [],
+                        choices: [],
+                        closeLabel: '返回',
+                        onClose: () => {
+                            G.addHero('xindra');
+                            G.unlockProtagonist('cindra');
+                            renderDay();
+                        }
+                    });
+                }
+            }
+        ]
+    },
+    day3_hall: {
+        loc: 'hall',
+        condition: g => g.currentDay>=3 && g.goodwill>=10,
+        bg: 'hall.png', sprite: null,
+        scene: '你繞著巨大的圓桌緩緩走了一圈。\n桌面上的灰塵厚達半寸，彷彿多年無人觸碰。\n在桌腳旁，有個翻倒的木箱，裡面散落著幾本褪色的手記。\n其中一本封面寫著《煉金師 盧卡的配方手記》，頁緣還有各種草藥留下的深褐色污漬。',
+        dialogues: [],
+        choices: [],
+        closeLabel: '帶走手記',
+        onClose: () => {
+            G.addHero('luca');
+            G.unlockProtagonist('luca');
+            renderDay();
+        }
+    },
+    day4_garden: {
+        loc: 'garden',
+        condition: g => g.currentDay>=4 && g.goodwill>=20,
+        sprite: null,
+        scene: '枯萎的玫瑰叢中，你的腳碰到了什麼堅硬的東西。\n撥開荊棘，是一柄半埋在泥土裡的斷劍——劍刃已鏽蝕，但劍柄處仍可辨認出刻著的名字：「冬之女王」。\n劍鞘在旁邊腐爛殆盡，唯獨這把劍，彷彿還在守護著什麼。',
+        dialogues: [],
+        choices: [],
+        closeLabel: '帶走斷劍',
+        onClose: () => {
+            G.addHero('winter');
+            G.unlockProtagonist('asha');
+            renderDay();
+        }
+    },
+    day2_window: {
+        loc: 'bedroom',
+        condition: g => g.currentDay>=2 && g.phase==='castle' && g.goodwill>=2,
+        onTrigger: () => {
+            showEvent({
+                bg: 'hall.png', sprite: null,
+                scene: '深夜，你離開臥室，踏入幽暗的長廊。\n兩側燭火搖曳，在石壁上投下細長的影子。\n走到一半，你注意到走廊盡頭某扇房間——門縫透著一道微弱的光。',
+                closeLabel: '走向那道光源',
+                onClose: () => {
+                    fadeTransition(() => {
+                        showEvent({
+                            bg: 'night_window.jpg', sprite: null,
+                            scene: '你輕輕推開門——\n月光從高聳的哥德窗戶瀉入，將室內渡上一層銀白。\n她就坐在窗台上，側臉沉浸在月光裡，長長的銀髮垂落肩頭，一動不動地凝視著窗外的夜色。',
+                            closeLabel: '輕聲出聲',
+                            onClose: () => {
+                                fadeTransition(() => {
+                                    showEvent({
+                                        bg: 'hall.png', sprite: 'lilth_sleepwear',
+                                        voice: 'voice-ohyou',
+                                        scene: '她感覺到你的存在，微微側過頭。\n「喔，是你啊，有什麼事嗎？」\n她的語氣比起第一次見面，柔和了許多。',
+                                        dialogues: [],
+                                        choices: [
+                                            {
+                                                label: '「沒什麼，剛好起來走走。」',
+                                                onPick: () => {
+                                                    G.goodwill+=2; G.updateGoodwillTier();
+                                                    showEvent({
+                                                        bg: 'hall.png', sprite: 'lilth_sleepwear',
+                                                        scene: '',
+                                                        dialogues: [
+                                                            {speaker:'莉莉絲', words:'「是嗎？」她從窗台輕盈躍下，湊近了你。\n「那陪我聊點天吧，我睡不著。」\n見到你明顯緊張的樣子，她失笑：\n「用不著這麼緊張，你是第一次看到女人嗎。」'},
+                                                            {speaker:'莉莉絲', words:'「其實有時候，忘掉過去，比記得一切還好得多......」\n她拿起一杯酒，眼神惆悵，欲言又止。\n「早點睡吧，晚安。明天一樣講故事給我聽。」'}
+                                                        ],
+                                                        choices: [],
+                                                        closeLabel: '「好的。」（回到房間）',
+                                                        onClose: () => { toast('好感度 +2 ── 她對你多了一點信任'); renderDay(); }
+                                                    });
+                                                }
+                                            },
+                                            {
+                                                label: '（悄悄離開，不打擾她）',
+                                                onPick: () => {
+                                                    showEvent({
+                                                        bg: 'night_window.jpg', sprite: null,
+                                                        scene: '你悄悄轉身，不忍打擾她這一刻的靜謐。\n月光灑在她的側臉上，像是一幅畫。',
+                                                        dialogues: [],
+                                                        choices: [],
+                                                        closeLabel: '回到房間'
+                                                    });
+                                                }
+                                            }
+                                        ]
+                                    });
+                                }, 400);
+                            }
+                        });
+                    }, 400);
+                }
+            });
+        }
+    },
+    day5_diary: {
+        loc: 'library',
+        condition: g => g.currentDay>=5 && g.goodwill>=30,
+        bg: 'hall.png', sprite: 'pensive',
+        scene: '你走進書房，空氣裡瀰漫著潮濕紙頁與舊木頭的味道。\n在一排傾斜的藏書後方，你摸到一個暗格。\n暗格裡，靜靜地躺著一本積滿灰塵的舊日記，封面用稚氣的圓潤字跡寫著：「我的秘密花園」。',
+        dialogues: [
+            {speaker: '', words: '你翻開第一頁——這是她的字跡，只是比現在稚嫩許多，帶著小女孩特有的溫柔筆觸。\n\n「今天看了一本童話書，王子很帥。我也要找一個像王子一樣的人，\n和他住在城堡裡，每天晚上都有人說故事給我聽，永遠快樂下去。」'},
+            {speaker: '', words: '你繼續翻著。隨著頁碼增加，字跡開始變得顫抖、歪斜，像是被什麼沉重的東西壓著寫出來的。\n\n最後一頁，只有短短幾行：\n\n「父親說，要去替我找一個好歸宿。\n但我已經不需要了。\n我只是在想，那個人——\n最後有沒有找到，自己的王子殿下⋯⋯」\n\n之後，是空白。'}
+        ],
+        choices: [],
+        closeLabel: '（悄悄放回抽屜，不讓她知道）',
+        onClose: () => { G.goodwill+=2; G.updateGoodwillTier(); toast('好感度 +2 ── 你窺見了她埋藏最深的那個願望'); renderDay(); }
+    },
+    day6_dress: {
+        loc: 'gate',
+        condition: g => g.currentDay>=6 && g.goodwill>=40,
+        bg: 'hall.png', sprite: 'sad_empathy',
+        scene: '玄關角落的壁龕裡，你注意到一個被舊布仔細包裹的東西。\n布料很舊，卻折疊得極其工整，像是被人無數次拿起、又無數次放回。',
+        dialogues: [
+            {speaker: '', words: '你輕輕打開布包——\n裡面是一件純白色的禮服，款式古典，做工繁複，是那種屬於貴族盛典的服裝。\n原本應該是件極華貴的禮服，但左肩和袖口處，有幾片已發黃的褐色血漬，無論怎麼清洗，都無法完全抹去。\n\n「⋯⋯那件衣服，你不該碰的。」'},
+            {speaker: '莉莉絲', words: '她不知何時出現在身後，聲音帶著一絲銳利，卻不像生氣，更像是某種掩藏。\n見你手持著那件禮服，她愣了一下，臉上有什麼東西迅速地收了起來。\n「放著吧。那件衣服——我不穿了。」\n她轉身走向大廳，腳步比平時快了一點。'}
+        ],
+        choices: [],
+        closeLabel: '（輕輕折好，放回壁龕）',
+        onClose: () => { G.goodwill+=3; G.updateGoodwillTier(); toast('好感度 +3 ── 她曾經最愛的，也是她最不敢再碰的'); renderDay(); }
+    },
+    day7_doctor: {
+        loc: 'corridor',
+        condition: g => g.currentDay>=7 && g.goodwill>=60,
+        bg: 'hall.png', sprite: 'sad_empathy',
+        scene: '走廊最深處，有一扇沉重的木門。\n你從未見它開過。\n今天，門縫透著一絲微弱的光。',
+        dialogues: [
+            {speaker: '', words: '你推門進去——\n這是間積滿灰塵的小室，陳設簡樸，角落裡有一具保存完好的骸骨，靜靜地坐在一張木椅上，姿態安詳。\n骸骨旁擺著一個老舊的皮革手提袋，裡面裝著幾本記滿字的日記。\n封面最上方，用工整的字跡寫著：「我與她的五十年」。'},
+            {speaker: '', words: '你翻開幾頁，越看眉頭越緊。\n\n「⋯⋯她的故事，充滿了我無法理解的美麗與悲哀。\n我只是想記錄下來，讓這一切，不要就這樣消失在黑暗裡⋯⋯」\n\n你放下日記，轉過身——\n門口，莉莉絲靠著門框，靜靜地看著你，不知站了多久。'},
+            {speaker: '莉莉絲', words: '「⋯⋯你找到了。」\n她的聲音很平靜，但握著門框的指尖微微發白。\n「那個人，是我曾經以為的，唯一一個真正的朋友。」\n她停頓了一下。\n「後來我才明白，他不過是在為他的書取材。」'},
+            {speaker: '莉莉絲', words: '她望著那具骸骨，眼神是難以名狀的複雜。\n良久，她才輕聲說：\n「但是⋯⋯他是第一個，讓我覺得不那麼孤單的人。」\n她抬起頭，眼神第一次是脆弱而真實的，沒有了平日的鋒芒。\n「謝謝你⋯⋯沒有拿走他的東西。」'}
+        ],
+        choices: [],
+        closeLabel: '「⋯⋯他一定也很珍惜妳。」（靜靜站在她身邊）',
+        onClose: () => { G.goodwill+=5; G.updateGoodwillTier(); toast('好感度 +5 ── 她把秘密給了你，這是她能給的最重的信任'); renderDay(); }
+    }
+};
+const LOCATION_TRACES = {
+    ceiling:[
+        {text:'天使的臉朝下，直盯著地牢的每一個角落。你數了一下，共有十二個。每一個嘴角的弧度都不同——有些像在哭，有些像在笑，還有幾個你分不清楚。'},
+        {text:'天使翅膀的羽毛雕刻極其精細，但最下排的那一片，被人仔細地磨去了——不是損毀，是某種刻意的抹除。'},
+        {text:'最角落那個天使的眼睛被人用什麼東西填平過，顏色與周圍石材略有不同。有人不想讓它繼續看著這裡。'}
+    ],
+    bread:[
+        {text:'麥包放在一塊乾淨的粗布上，位置在石台的正中央。不是隨手放的，有人特意這樣擺。'},
+        {text:'麥包邊緣沒有任何霉斑，卻也沒有被碰過的痕跡。每天都有新的被帶來，還是根本從來沒有人動過？'},
+        {text:'布的邊緣被折了四次，折痕極其筆直。這不是為了你準備的——這是她的習慣。'}
+    ],
+    floor:[
+        {text:'大部分地磚積滿灰塵，但你腳下這條路線，灰塵薄了許多。有人走過這裡，不只一次。'},
+        {text:'你蹲下來，在角落的灰塵裡看見幾個細小的腳印——比你的腳小得多，鞋跟細長。她曾在這裡反覆踱步。'},
+        {text:'蜘蛛網在天花板幾乎連成一片，但鐵鏈正下方那一區，乾淨得不自然。那個位置，她是不是也曾長時間凝視著？'}
+    ],
+    corpse:[
+        {text:'你靠近看，脖子上的兩個咬痕極其整齊，幾乎像是精心完成的工藝。這不是衝動，是她認為自己在做某件有意義的事。'},
+        {text:'乾屍的手被人擺放成交疊在腹部的姿勢。雖然骨骼已移位，但你仍可辨認出那是一個刻意的安排——她安置過他們。'},
+        {text:'石壁上用尖銳物刻著幾行字，細小難以辨認。其中一段你勉強讀出：「我只是太餓了。」'}
+    ],
+    window:[
+        {text:'鐵窗橫欄上有幾處鐵鏽被磨掉——是人手反覆抓握的痕跡，不是你留下的，你還沒握過。'},
+        {text:'你把眼睛貼近鐵窗往外看，黑暗裡什麼都沒有。但窗台的石縫裡，夾著一片乾燥的植物葉片——是誰從外面帶進來的，還是從裡面想把它送出去？'},
+        {text:'你注意到這扇窗的鐵條間距，比尋常地牢寬了一些。細瘦的人，也許可以擠得過去。她知道嗎？'}
+    ],
+    library:[
+        {text:'最裡側書架的一排書脊上，灰塵厚薄不一。中間有三本被反覆抽出又放回，位置永遠保持在同一高度。'},
+        {text:'書桌上的羽毛筆早已乾裂，但墨水瓶蓋緊閉，瓶口沒有結塊。有人不久前才把它擦拭乾淨。'},
+        {text:'靠窗的位置壓著一張未完成的便箋，只寫到「若有人願意聽完——」。句子在破折號後戛然而止。'}
+    ],
+    bedroom:[
+        {text:'窗台上整齊放著幾個举枯的玫瑞花苞，每一朵都用黑絲帶細心捆著。她費心保存了這些早已凋零的東西。'},
+        {text:'床頭書桌的把手旁，有一道淺淺的刮痕——是反覆把抽屜拉開、再關上的痕跡。不知道她在找什麼，或是在猶豋要放進去什麼。'},
+        {text:'枕頭上有一個幾乎看不出來的弹性凹陷，中間偏左一點。她每晚睡在同樣的位置，像是某種無聲的儀式。'}
+    ],
+    bathroom:[
+        {text:'洗手台旁，三個空玻璃甁排成一列，間距均等，每一個都被仔細清洗後放回。這不像遗忘，更像是某種整理。'},
+        {text:'鏡子左下角，有人用指尖在水霧上反覆描畫——字跡早已消散，但油脂的輪廓仍留著，像是某個名字的殘像。'},
+        {text:'牆上的毛巾折成完美的長方形，但右下角有一個細小的抒絲，有人試著把它藏進折疊的夾縮裡。'}
+    ],
+    hall:[
+        {text:'圓桌上的灰塵被人用指尖劃出了什麼圖案——只有一半，像是畫到一半就停了手。'},
+        {text:'壁爐架上的軴燭殘留高度不一。非左的那根幾乎燃盡，非右的還很長。她習慣坐在左邊。'},
+        {text:'椅脚旁的地板有一圈淡淡的磨痕。那把椅子被人反覆推開又拉回，不知多少次了。'}
+    ],
+    corridor:[
+        {text:'長廊盡頭的畫像，畫中人的眼睛被人用什麼軟軟描過——不是破壞，像是某種非常軟柔的接觸。'},
+        {text:'有一片地磚格外光亮，和旁邊積灰的磚塊形成對比。有人習慣站在那裡，沉默地站很久。'},
+        {text:'其中一根燭台上的軴燭是新的，和其他幾乎燃盡的軴燭格格不入。那個位置，正好面對走廊最深處。'}
+    ],
+    gate:[
+        {text:'門栓非近鎖孔的位置，有一道細長的磨痕。她試過打開這扇門——但只是試過。'},
+        {text:'門前的東洋文物底座上落了灰，但其中一件被翻轉過、再放回去，底部的顏色更深，說明它被反覆拿起。'},
+        {text:'玄關地磚上有一個幾乎看不見的脚印輪廓，朝向大門的方向。不知那次，她最後有沒有真的走出去。'}
+    ],
+    garden:[
+        {text:'枯玫瑞叢中，有一株被修剪過——雜亂的荆棘被整齊地剪去，露出一截幾乎看不見的婷芽。'},
+        {text:'石庳旁有一個沿了泥土的手套，只有右手的那一只，左手的那只不知去向。'},
+        {text:'花圃邊緣，幾塊小石頭被排成半圓形。精心，而且在許多次風雨後仍然沒有倒。'}
+    ]
+};
+const PIMG  = {'1':'Armel','2':'Cindra','3':'Luca','4':'Asha'};
+const COLEN = {'紅':'red','黃':'yellow','藍':'blue','白':'white'};
+const CCLS      = {'紅':'c-red','黃':'c-yel','藍':'c-blu','白':'c-wht'};
+const CARD_COL_EN = {'紅':'red','黃':'yellow','藍':'blue'};
+
+const STAGE_NAMES = ['起','承','轉','合'];
+
+const G = {
+    deck:[], discard:[], hand:[],
+    phaseResults:[], currentPhase:0,
+    rerolls:5, nightColor:'紅',
+    nightHandCount:{},
+    selectedProtagonist:null,
+    unlockedProtagonists:new Set(),
+    heroes:[], // collected hero cards
+    totalScore:0, currentDay:1, maxDays:8,
+    energy:3, energyUsed:0,
+    memFrags:[], memBonus:0,
+    visitedLocs:new Set(),
+    goodwill:0, goodwillTier:'陌生人',
+    phase:'dungeon',
+    dungeonNight:false,
+    eventFlags:{},
+    cluePoints:0,
+    _badEndPending:null,
+    lilithNameKnown:false,
+
+    createDeck() {
+        this.deck=[];
+        ['紅','黃','藍'].forEach(c=>{
+            for(let i=0;i<2;i++) for(let n=1;n<=10;n++) this.deck.push(new StoryCard(c,n));
+        });
+        shuffle(this.deck);
+    },
+    draw() {
+        if(this.deck.length===0){
+            if(this.discard.length===0) return null;
+            this.deck=[...this.discard]; this.discard=[]; shuffle(this.deck);
+            toast('牌庫已空，重洗棄牌堆！');
+        }
+        return this.deck.pop();
+    },
+    startNight(protagonistId) {
+        document.getElementById('night-screen').style.background="url('assets/backgrond_2.jpg') center/cover no-repeat";
+        this.createDeck();
+        this.nightColor='紅';
+        if(protagonistId && PROTAGONISTS[protagonistId] && this.unlockedProtagonists.has(protagonistId)) {
+            this.selectedProtagonist=protagonistId;
+        }
+        this.hand=Array.from({length:7},()=>this.draw());
+        this.rerolls=5; this.phaseResults=[]; this.currentPhase=0; this.nightHandCount={};
+        hide('setup-modal'); switchScreen('night');
+        const protName = this.selectedProtagonist ? PROTAGONISTS[this.selectedProtagonist].name : '無主角';
+        toast(`第${this.storyNightDay()}夜${this.selectedProtagonist ? '・主角 '+protName : ''}`);
+        startLilithNight();
+        render();
+    },
+    playCurrentPhase() {
+        if(selIdx.length<1||selIdx.length>5){toast('請選擇 1~5 張牌出牌');return;}
+        const selectedCards=selIdx.map(i=>this.hand[i]);
+        const {hand:handType,nums}=this.calcHand5(selectedCards);
+        const base=this.baseScore5(handType,nums);
+        const rawBB=BASE_BONUS[handType]||0;
+        const rawHB=this.heroBonus(handType);
+        const defense=this.applyNightDefense({handType,selectedCards,base,bB:rawBB,hB:rawHB});
+        const {bB,hB,phaseScore,dAdj,notes}=defense;
+        this.phaseResults.push({hand:handType,base,bB,hB,dAdj,defenseNote:notes.join(' / '),score:phaseScore,cards:selectedCards});
+        this.nightHandCount[handType]=(this.nightHandCount[handType]||0)+1;
+        const sortedIdx=[...selIdx].sort((a,b)=>b-a);
+        sortedIdx.forEach(i=>this.discard.push(this.hand.splice(i,1)[0]));
+        selIdx=[];
+        while(this.hand.length<7){const c=this.draw();if(c)this.hand.push(c);else break;}
+        const phaseName=STAGE_NAMES[this.currentPhase];
+        const defenseTag=dAdj!==0?`（心防${dAdj>0?'+':''}${dAdj}）`:'';
+        toast(`${phaseName}：${handType} → +${phaseScore} 分${defenseTag}`);
+        this.currentPhase++;
+        if(!this.dungeonNight && this.currentPhase===1) setTimeout(()=>_playVoice('voice-interesting'),400);
+        if(!this.dungeonNight && this.currentPhase===3) setTimeout(()=>_playVoice('voice-ending'),400);
+        document.getElementById('play-btn').disabled=true;
+        render();
+        if(this.currentPhase===4) setTimeout(()=>this.judgeNight(),600);
+    },
+    reroll(idxs) {
+        if(this.rerolls<=0){toast('沒有重塑機會了！');return;}
+        idxs.sort((a,b)=>b-a).forEach(i=>this.discard.push(this.hand.splice(i,1)[0]));
+        idxs.forEach(()=>{const c=this.draw();if(c)this.hand.push(c);});
+        this.rerolls--;
+        toast(`已重塑${idxs.length}張，剩餘${this.rerolls}次機會`);
+        render();
+    },
+    judgeNight() {
+        document.getElementById('play-btn').disabled=true;
+        const phaseTotal=this.phaseResults.reduce((s,r)=>s+r.score,0);
+
+        // ── Dungeon interrogation ───────────────────────────
+        if(this.dungeonNight){
+            this.dungeonNight=false;
+            const isGood=phaseTotal>=100;
+            dungeonPendingResult=isGood?'good':'bad';
+            document.getElementById('lily-reaction').textContent=isGood
+                ?'「⋯⋯你的故事，跟以往來的那些傢伙不太一樣。」\n她緩緩抬起手，解開了面具的扣環。'
+                :'「無趣。」她冷冷地說，危險的氣息瞬間籠罩了整個地牢。';
+            const btn=document.getElementById('to-day-btn');
+            btn.textContent=isGood?'（她摘下了面具……）':'（命運就此終結）';
+            btn.style.borderColor=isGood?'var(--gold)':'var(--red)';
+            btn.style.color=isGood?'var(--gold)':'#e07070';
+            showResult({phaseResults:this.phaseResults,night:phaseTotal,mB:0,cpBonus:0,total:phaseTotal,rerolls:this.rerolls,isDungeon:true});
+            return;
+        }
+
+        // ── Normal night ────────────────────────────────────
+        const night=phaseTotal; // no multiplier — hero bonuses already baked into phase scores
+        const mB=Math.round(night*(this.memBonus/100));
+        const cpBonus=this.cluePoints*12;
+        this.cluePoints=0;
+        const total=night+mB+cpBonus;
+
+        this.totalScore+=total;
+        const storyDay=this.storyNightDay();
+        const tgt=NIGHT_TARGETS[storyDay]||NIGHT_TARGETS[8];
+        if(total<tgt.survive){
+            const dlgFail=NIGHT_DIALOGUES[storyDay]||NIGHT_DIALOGUE_DEFAULT;
+            document.getElementById('lily-reaction').textContent=dlgFail.fail||
+                '「⋯⋯這是你最後一個故事了。」她的聲音冰冷。';
+            showResult({phaseResults:this.phaseResults,night,mB,cpBonus,total,rerolls:this.rerolls,storyDay});
+            const btn=document.getElementById('to-day-btn');
+            btn.textContent='（命運就此終結）';
+            btn.style.borderColor='var(--red)'; btn.style.color='#e07070';
+            this._badEndPending={day:this.currentDay, gw:this.goodwill};
+            return;
+        }
+        if(total>=tgt.perfect){this.goodwill+=4;toast('完美故事！好感度 +4 ✦');}
+        else if(total>=tgt.good){this.goodwill+=2;toast('精彩故事！好感度 +2');}
+        else{toast('故事尚可，繼續努力');}
+        this.updateGoodwillTier();
+        const dlgTable=NIGHT_DIALOGUES[storyDay]||NIGHT_DIALOGUE_DEFAULT;
+        const level=total>=tgt.perfect?'high':total>=tgt.good?'mid':'low';
+        document.getElementById('lily-reaction').textContent=dlgTable[level]||dlgTable.mid;
+        showResult({phaseResults:this.phaseResults,night,mB,cpBonus,total,rerolls:this.rerolls,storyDay});
+        // Restore to-day-btn default
+        const tbtn=document.getElementById('to-day-btn');
+        tbtn.textContent='迎接白晝'; tbtn.style.borderColor=''; tbtn.style.color=''; tbtn.onclick=null;
+    },
+    calcHand5(cards) {
+        const isW=this.nightColor==='白';
+        const nums=cards.map(c=>c.number).sort((a,b)=>a-b);
+        const count=cards.length;
+        const cols=cards.map(c=>(isW&&c.number<=5)?'白':c.color);
+        const isFlush=count===5&&new Set(cols).size===1;
+        const isSeq=count===5&&new Set(nums).size===5&&nums[4]-nums[0]===4;
+        if(isFlush&&isSeq) return{hand:'同花順',nums};
+        const cnt=nums.reduce((a,v)=>({...a,[v]:(a[v]||0)+1}),{});
+        const vals=Object.values(cnt).sort((a,b)=>b-a);
+        if(count>=4&&vals[0]===4) return{hand:'鐵支',nums};
+        if(count===5&&vals[0]===3&&vals[1]===2) return{hand:'葫蘆',nums};
+        if(isFlush) return{hand:'同花',nums};
+        if(isSeq) return{hand:'順子',nums};
+        if(count>=3&&vals[0]===3) return{hand:'三條',nums};
+        if(count>=4&&vals[0]===2&&vals[1]===2) return{hand:'兩對',nums};
+        if(count>=2&&vals[0]===2) return{hand:'一對',nums};
+        return{hand:'無',nums};
+    },
+    baseScore5(hand,nums) {
+        if(this.nightColor==='白'&&hand==='同花'){
+            const m={1:5,2:4,3:3,4:2,5:1};
+            return nums.reduce((s,n)=>s+(m[n]||0),0);
+        }
+        return nums.reduce((s,n)=>s+n,0);
+    },
+    heroBonus(hand) {
+        // Sum bonuses from all collected heroes whose trigger includes this hand type
+        return this.heroes.reduce((s,h)=>s+(h.triggers.includes(hand)?h.bonus:0),0);
+    },
+    storyNightDay() {
+        // Castle nights are offset by the dungeon prologue night.
+        return this.phase==='castle' ? Math.max(1,this.currentDay-1) : this.currentDay;
+    },
+    getEffectiveColor(card) {
+        return (this.nightColor==='白'&&card.number<=5)?'白':card.color;
+    },
+    applyNightDefense({handType,selectedCards,base,bB,hB}) {
+        let modBB=bB;
+        let modHB=hB;
+        let phaseScore=base+modBB+modHB;
+        const notes=[];
+
+        if(this.dungeonNight){
+            return {bB:modBB,hB:modHB,phaseScore,dAdj:0,notes};
+        }
+
+        const storyDay=this.storyNightDay();
+
+        // Night 1 - 黑暗審判：若本回合出現明色牌（黃/白），牌型與英雄加成失效。
+        if(storyDay===1){
+            const hasBright=selectedCards.some(c=>{
+                const ec=this.getEffectiveColor(c);
+                return ec==='黃'||ec==='白';
+            });
+            if(hasBright){
+                modBB=0;
+                modHB=0;
+                phaseScore=base;
+                notes.push('黑暗審判');
+            }
+        }
+
+        // Night 2 - 重複的謊言：低階牌型減半，重複同牌型則本回合再遞減。
+        if(storyDay===2){
+            if(handType==='一對'||handType==='兩對'){
+                modBB=Math.round(modBB*0.5);
+                notes.push('重複的謊言：低階牌型減半');
+            }
+            phaseScore=base+modBB+modHB;
+            const seen=this.nightHandCount[handType]||0;
+            if(seen>=1){
+                phaseScore=Math.round(phaseScore*0.8);
+                notes.push('重複的謊言：同牌型遞減');
+            }
+        }
+
+        const rawScore=base+bB+hB;
+        return {bB:modBB,hB:modHB,phaseScore,dAdj:phaseScore-rawScore,notes};
+    },
+    addHero(id) {
+        const h=HEROES[id];
+        if(h&&!this.heroes.find(x=>x.id===id)){
+            this.heroes.push(h);
+            toast(`英雄牌加入：${h.icon} ${h.name}（${h.desc} +${h.bonus}）`);
+        }
+    },
+    unlockProtagonist(id) {
+        if(PROTAGONISTS[id] && !this.unlockedProtagonists.has(id)){
+            this.unlockedProtagonists.add(id);
+            if(!this.selectedProtagonist) this.selectedProtagonist=id;
+            toast(`主角卡解鎖：${PROTAGONISTS[id].name}（${PROTAGONISTS[id].desc}）`);
+        }
+    },
+    startDay(rerolls) {
+        this.energy=3+rerolls; this.energyUsed=0; this.visitedLocs=new Set();
+        this.cluePoints=0;
+        stopLilithNight();
+        switchScreen('day'); renderDay();
+    },
+    explore(loc) {
+        if(this.energy-this.energyUsed<=0){toast('精力不足！');return false;}
+        this.energyUsed++; this.visitedLocs.add(loc); renderDay(); return true;
+    },
+    endDay() {
+        this.currentDay++;
+        if(this.currentDay>this.maxDays){showEnding();return;}
+        if(this.currentDay===2) this.phase='castle';
+        if(this.currentDay===2 && !this.lilithNameKnown){
+            showEvent({
+                bg:'hall.png', sprite:'lilith_showing_her_face',
+                voice:'voice-name',
+                scene:'搖曳的燭火映出她側臉的輪廓。\n你站在大廳中央，第一次在光線下清楚地看見她的臉——\n銀白的長髮，如紅水晶般的雙眸，皮膚蒼白而剔透。',
+                dialogues:[
+                    {speaker:'莉莉絲', words:'她在你面前停下，靜靜地看著你，眼神裡有什麼東西在衡量。\n\n「⋯⋯你和那些人不一樣。」\n她說得很慢，像是把每個字都掂過重量。\n「雖然我還不知道，這是好事還是壞事。」'},
+                    {speaker:'莉莉絲', words:'「對了，我還沒告訴過你我的名字。」\n她的語氣平靜，彷彿這只是一件普通的事——\n但你直覺地感到，對她而言，這並不是件小事。\n\n「莉莉絲。這是我的名字。\n今晚的故事，要讓我滿意。」'},
+                ],
+                choices:[],
+                closeLabel:'「……明白了，莉莉絲。」',
+                onClose:()=>{ G.lilithNameKnown=true; showSetupModal(); switchScreen('night'); render(); }
+            });
+        } else {
+            showSetupModal(); switchScreen('night'); render();
+        }
+    },
+    updateGoodwillTier() {
+        for(let i=GOODWILL_TIERS.length-1;i>=0;i--){
+            if(this.goodwill>=GOODWILL_TIERS[i].min){this.goodwillTier=GOODWILL_TIERS[i].tier;break;}
+        }
+    },
+    startDungeonNight() {
+        this.dungeonNight=true;
+        document.getElementById('night-screen').style.background="url('assets/jail.png') center/cover no-repeat";
+        this.createDeck();
+        this.nightColor='藍'; // default for dungeon
+        this.hand=Array.from({length:7},()=>this.draw());
+        this.rerolls=5; this.phaseResults=[]; this.currentPhase=0;
+        switchScreen('night');
+        render();
+    }
+};
+
+// ── Utils ──────────────────────────────────────────────────
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}}
+function switchScreen(n){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(n+'-screen').classList.add('active');}
+function show(id){document.getElementById(id).classList.add('show');}
+function hide(id){
+    document.getElementById(id).classList.remove('show');
+    if(id==='event-modal'){ stopLilithVideo(); stopLilithReveal(); stopLilithDark(); stopLilithSleepwear(); }
+}
+function fadeTransition(callback,duration=450){
+    const el=document.getElementById('scene-transition');
+    el.classList.add('fading');
+    setTimeout(()=>{
+        if(callback) callback();
+        requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.remove('fading')));
+    },duration);
+}
+function toast(msg,ms=2800){
+    const c=document.getElementById('toasts'),t=document.createElement('div');
+    t.className='toast';t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),ms);
+}
+function getLocData(loc){ return G.phase==='dungeon'?DUNGEON_LOCS[loc]||{name:loc}:CASTLE_LOCS[loc]||{name:loc}; }
+function getPendingEvent(loc){
+    for(const [flag,evt] of Object.entries(STORY_EVENTS)){
+        if(evt.loc===loc && !G.eventFlags[flag] && evt.condition(G)) return{flag,...evt};
+    }
+    return null;
+}
+function clickLocation(loc){
+    const pending=getPendingEvent(loc);
+    if(pending){
+        if(!G.explore(loc)) return;
+        G.eventFlags[pending.flag]=true;
+        if(pending.onTrigger){
+            fadeTransition(pending.onTrigger);
+        } else {
+            fadeTransition(()=>showEvent({scene:pending.scene,dialogues:pending.dialogues,choices:pending.choices,closeLabel:pending.closeLabel,onClose:pending.onClose,sprite:pending.sprite,bg:pending.bg}));
+        }
+    } else if(G.phase==='castle'){
+        openTrace(loc);
+    } else {
+        openCoin(loc);
+    }
+}
+function showSetupModal(){
+    // Dungeon phase: no protagonist selection
+    if(G.phase==='dungeon' || G.unlockedProtagonists.size===0){
+        hide('setup-modal');
+        G.startNight(null);
+        return;
+    }
+    
+    const hBox=document.getElementById('setup-heroes');
+    const ruleBox=document.getElementById('setup-rule-note');
+    const pBox=document.getElementById('setup-protagonists');
+    if(G.heroes.length===0){
+        hBox.innerHTML='<div style="font-size:12px;color:rgba(245,234,221,.4);text-align:center;">尚未收集英雄牌 — 白天探索可獲得</div>';
+    } else {
+        hBox.innerHTML='<div style="font-size:10px;color:var(--gold);letter-spacing:1px;margin-bottom:7px;text-align:center;">✨ 本夜英雄牌</div>'+
+            G.heroes.map(h=>
+                `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid rgba(160,128,64,.12);">`+
+                `<span>${h.icon} ${h.name}</span>`+
+                `<span style="color:var(--gold);">${h.triggers.join('/')} +${h.bonus}</span></div>`
+            ).join('');
+    }
+    const sd=G.storyNightDay();
+    if(sd===1){
+        ruleBox.innerHTML='✦ 今夜心防：<strong>黑暗審判</strong><br>若本回合出現明色牌（黃/白），該回合<strong>牌型加成與英雄加成歸零</strong>。';
+    } else if(sd===2){
+        ruleBox.innerHTML='✦ 今夜心防：<strong>重複的謊言</strong><br>「一對 / 兩對」牌型加成減半；同一夜重複同牌型，該回合分數再打 8 折。';
+    } else {
+        ruleBox.innerHTML='✦ 今夜心防：<strong>一般審視</strong><br>莉莉絲會依故事分數判定：生存 / 精彩 / 完美。';
+    }
+
+    pBox.innerHTML=Object.values(PROTAGONISTS).map(p=>
+        `<div class="setup-protagonist-card ${G.selectedProtagonist===p.id?'active':''} ${G.unlockedProtagonists.has(p.id)?'':'locked'}" data-protagonist="${p.id}">`+
+            `<img src="assets/${p.img}" alt="${p.name}">`+
+            `<div><div class="sp-name">${p.name}</div><div class="sp-desc">${G.unlockedProtagonists.has(p.id)?p.desc:'尚未解鎖'}</div></div>`+
+        `</div>`
+    ).join('');
+
+    pBox.querySelectorAll('.setup-protagonist-card').forEach(el=>{
+        el.addEventListener('click',()=>{
+            if(el.classList.contains('locked')){
+                toast('此主角尚未解鎖');
+                return;
+            }
+            G.selectedProtagonist=el.dataset.protagonist;
+            showSetupModal();
+        });
+    });
+
+    show('setup-modal');
+}
+
+// ── Render ─────────────────────────────────────────────────
+let selIdx=[];
+
+function render() {
+    document.getElementById('h-deck').textContent=G.deck.length;
+    document.getElementById('h-reroll').textContent=G.rerolls;
+    document.getElementById('h-score').textContent=G.totalScore;
+    document.getElementById('h-goodwill').textContent=G.goodwill;
+    document.getElementById('h-goodwill-tier').textContent=G.goodwillTier;
+    document.getElementById('h-clues').textContent=G.cluePoints;
+    document.getElementById('clues-badge').style.display=G.dungeonNight?'none':'flex';
+    document.getElementById('lily-panel').style.display=G.dungeonNight?'none':'';
+    const lsw=document.getElementById('lily-sprite-wrap');
+    if(lsw) lsw.style.display=G.dungeonNight?'none':'';
+    document.getElementById('lily-name-lbl').textContent=G.lilithNameKnown?'莉莉絲':'???';
+    document.getElementById('h-day').textContent=G.dungeonNight?'地牢 — 深夜審問':`第 ${G.storyNightDay()} 夜`;
+    const phaseN=G.currentPhase<4?STAGE_NAMES[G.currentPhase]:'完成';
+    document.getElementById('phase-num-txt').textContent=G.currentPhase<4?(G.currentPhase+1):4;
+    document.getElementById('phase-name-txt').textContent=phaseN;
+    document.getElementById('sel-count-txt').textContent=selIdx.length;
+    document.getElementById('h-stage').textContent=G.currentPhase<4?`回合 ${G.currentPhase+1}：${phaseN}`:'故事完成';
+
+    const protDisplay=document.getElementById('prot-display');
+    if(G.selectedProtagonist && PROTAGONISTS[G.selectedProtagonist]){
+        const p=PROTAGONISTS[G.selectedProtagonist];
+        document.getElementById('pd-name').textContent=p.name;
+        document.getElementById('pd-avatar').src=`assets/${p.img}`;
+        document.getElementById('pd-avatar').alt=p.name;
+        protDisplay.style.display='block';
+    } else {
+        protDisplay.style.display='none';
+    }
+
+    // Heroes display
+    const hd=document.getElementById('heroes-display');
+    if(G.heroes.length===0){
+        hd.innerHTML='<span class="hd-empty">尚未收集英雄牌</span>';
+    } else {
+        hd.innerHTML=G.heroes.map(h=>
+            `<div class="hero-chip" title="${h.triggers.join('/')}觸發：+${h.bonus}">${h.icon} ${h.name}</div>`
+        ).join('');
+    }
+
+    // Phase steps
+    STAGE_NAMES.forEach((n,i)=>{
+        const step=document.getElementById(`phase-step-${i}`);
+        step.className='phase-step';
+        if(i===G.currentPhase) step.classList.add('active');
+        else if(i<G.currentPhase) step.classList.add('done');
+        const r=G.phaseResults[i];
+        const handEl=document.getElementById(`ps-hand-${i}`);
+        handEl.textContent=r?r.hand:'待出';
+        handEl.style.color=r?(HAND_CLR[r.hand]||'var(--text)'):'rgba(245,234,221,.5)';
+        document.getElementById(`ps-score-${i}`).textContent=r?`+${r.score}`:'—';
+    });
+
+    // Play button
+    const pb=document.getElementById('play-btn');
+    pb.textContent=`出牌（${selIdx.length}/1-5）`;
+    pb.disabled=selIdx.length<1||G.currentPhase>=4;
+
+    const ha=document.getElementById('hand-area'); ha.innerHTML='';
+    G.hand.forEach((c,i)=>{
+        const el=mkCard(c); el.dataset.index=i;
+        if(selIdx.includes(i)) el.classList.add('selected');
+        ha.appendChild(el);
+    });
+    document.getElementById('deck-cnt').textContent=G.deck.length;
+    const rb=document.getElementById('reroll-btn');
+    rb.textContent=`重塑手牌 (${G.rerolls})`; rb.disabled=G.rerolls<=0;
+
+    const phaseReactions=[
+        '靜靜地等待故事的起點...',
+        '「有意思的開始。繼續說。」',
+        '她的眼神越來越專注...',
+        '「說書人，讓我看看這個故事的結局。」'
+    ];
+    if(G.currentPhase<4) document.getElementById('lily-reaction').textContent=phaseReactions[G.currentPhase];
+}
+
+function renderDay() {
+    const left=G.energy-G.energyUsed;
+    document.getElementById('energy-left').textContent=left;
+    document.getElementById('day-title').textContent=
+        G.currentDay<=1 ? '初抵古堡 — 心靈考古' : `第 ${G.currentDay-1} 天 — 心靈考古`;
+    const clueEl=document.getElementById('clue-display');
+    clueEl.innerHTML=G.cluePoints>0
+        ?`<div style="margin-top:8px;font-size:11px;color:#80c8ff;letter-spacing:1px;">✍ 線索 ${G.cluePoints} 枚 → 今晚 +${G.cluePoints*12} 分</div>`
+        :'';
+    const ob=document.getElementById('energy-orbs'); ob.innerHTML='';
+    for(let i=0;i<G.energy;i++){const o=document.createElement('div');o.className='orb'+(i>=left?' spent':'');ob.appendChild(o);}
+    const ml=document.getElementById('memory-list'); ml.innerHTML='';
+    if(G.memFrags.length>0){
+        const h=document.createElement('div'); h.style.cssText='font-size:10px;color:var(--gold);margin:10px 0 4px;letter-spacing:1px;';
+        h.textContent=`記憶碎片 (+${G.memBonus}%)`; ml.appendChild(h);
+        G.memFrags.slice(-5).forEach(f=>{
+            const d=document.createElement('div');
+            d.className='mem-item'+(f.rarity==='傳說'?' legend':f.rarity==='稀有'?' rare':'');
+            d.textContent=`${f.name} (+${f.bonus}%)`; ml.appendChild(d);
+        });
+    }
+    const locs=G.phase==='dungeon'?DUNGEON_LOCS:CASTLE_LOCS;
+    const grid=document.getElementById('loc-grid'); grid.innerHTML='';
+    Object.entries(locs).forEach(([key,loc])=>{
+        const hasEvt=!G.visitedLocs.has(key)&&left>0&&!!getPendingEvent(key);
+        const el=document.createElement('div');
+        el.className='loc-card'+(G.visitedLocs.has(key)?' visited':'')+(left<=0?' disabled':'')+(hasEvt?' has-event':'');
+        el.dataset.loc=key;
+        el.innerHTML=`<div class="loc-icon">${loc.icon}${hasEvt?'<span class="ev-badge">!</span>':''}</div><div class="loc-name">${loc.name}</div><div class="loc-desc">${loc.desc}</div>`;
+        grid.appendChild(el);
+    });
+}
+
+function mkCard(card) {
+    const el=document.createElement('div'); el.classList.add('card');
+    el.classList.add(CCLS[card.color]);
+    el.innerHTML=`<span class="cpip">${PIPS[card.color]||''}</span><div class="cnum">${card.number}</div><div class="ctag">${card.color}</div>`;
+    return el;
+}
+function mkSlotInner(card) {
+    const numColors={'紅':'#8c2222','黃':'#907010','藍':'#1a4a78','白':'#333'};
+    const el=document.createElement('div'); el.className='slot-inner';
+    el.innerHTML=`<div class="slot-num" style="color:${numColors[card.color]||'#333'}">${card.number}</div><div class="slot-tag">${card.color}</div>`;
+    return el;
+}
+
+function fmtText(str){
+    if(!str)return '';
+    const esc=str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return esc.split('\n\n').map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
+}
+
+function pickChoice(day,idx){
+    const dl=NIGHT_DIALOGUES[day]||NIGHT_DIALOGUE_DEFAULT;
+    if(!dl.choices)return;
+    const c=dl.choices[idx]; if(!c)return;
+    G.goodwill+=c.gwBonus;
+    G.updateGoodwillTier();
+    toast(`\u8389\u8389\u7d72\u5fc3\u6248\u5fae\u958b \u597d\u611f\u5ea6 +${c.gwBonus}`);
+    document.getElementById('choice-area').innerHTML=
+        `<div class="choice-area"><div class="choice-reaction">${c.reaction}</div><div class="choice-gw-badge">\u597d\u611f\u5ea6 +${c.gwBonus}</div></div>`;
+}
+
+function showResult({phaseResults,night,mB,cpBonus=0,total,rerolls,isDungeon,storyDay=G.storyNightDay()}) {
+    document.getElementById('result-title').textContent=isDungeon?'深夜審問':'故事結算';
+    // Best phase hand for display
+    const bestPhase=[...phaseResults].sort((a,b)=>b.score-a.score)[0]||{hand:'無',score:0};
+    const ht=document.getElementById('result-hand-type');
+    ht.textContent=`最佳牌型：${bestPhase.hand}`;
+    ht.style.color=HAND_CLR[bestPhase.hand]||'#f5eadd';
+    let targetRow='';
+    if(!isDungeon){
+        const tgt=NIGHT_TARGETS[storyDay]||NIGHT_TARGETS[8];
+        const survived=total>=tgt.survive;
+        const perf=total>=tgt.perfect;
+        const good=total>=tgt.good;
+        const badge=perf?'<span style="color:#ffd700">✦ 完美</span>':good?'<span style="color:#80c8ff">◎ 精彩</span>':survived?'<span style="color:#80ffb0">○ 存活</span>':'<span style="color:#e07070">✕ 失敗</span>';
+        targetRow=`<div class="srow" style="margin-top:6px;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">
+            <span class="sl">本夜門檻 存活/精彩/完美</span>
+            <span class="sv" style="font-size:11px;letter-spacing:0;">${tgt.survive} / ${tgt.good} / ${tgt.perfect} &nbsp;${badge}</span>
+        </div>`;
+    }
+    const dlgTable2=NIGHT_DIALOGUES[storyDay]||NIGHT_DIALOGUE_DEFAULT;
+    const narratorHtml=(!isDungeon&&dlgTable2.narrator)
+        ?`<div class="result-section-lbl">✦ 說書人旁白 ✦</div><div class="narrator-block">${fmtText(dlgTable2.narrator)}</div>`
+        :'';
+    const scoreDivider=narratorHtml
+        ?`<div class="result-section-lbl" style="margin:16px 0 6px;padding-top:14px;border-top:1px solid rgba(160,128,64,.25);">計分明細</div>`
+        :'';
+    const phaseNames=['起','承','轉','合'];
+    const phaseRows=phaseResults.map((r,i)=>`
+        <div class="srow">
+            <span class="sl" style="display:flex;align-items:center;gap:6px;">
+                <span style="color:var(--gold);font-weight:700;">${phaseNames[i]}</span>
+                <span style="font-size:12px;color:${HAND_CLR[r.hand]||'var(--text)'}">${r.hand}</span>
+                <span style="font-size:11px;opacity:.6;">（${r.base}+${r.bB}${r.hB>0?`+英${r.hB}`:''}${r.dAdj?`${r.dAdj>0?'+':'-'}心防${Math.abs(r.dAdj)}`:''}）</span>
+            </span>
+            <span class="sv">+${r.score}</span>
+        </div>`).join('');
+    const phaseTotal=phaseResults.reduce((s,r)=>s+r.score,0);
+    document.getElementById('score-rows').innerHTML=narratorHtml+scoreDivider+
+        `<div class="result-section-lbl" style="padding-top:4px;">四段故事明細</div>
+        ${phaseRows}
+        <div class="srow" style="padding-top:8px;border-top:1px solid rgba(160,128,64,.2);">
+            <span class="sl">本夜合計</span><span class="sv">${phaseTotal}</span>
+        </div>
+        ${mB>0?`<div class="srow"><span class="sl">記憶碎片加成 (+${G.memBonus}%)</span><span class="sv">+${mB}</span></div>`:''}
+        ${cpBonus>0?`<div class="srow"><span class="sl" style="color:#80c8ff;">線索加成（${cpBonus/12|0} 枚）</span><span class="sv" style="color:#80c8ff;">+${cpBonus}</span></div>`:''}
+        <div class="srow total"><span class="sl">本夜得分</span><span class="sv">${total}</span></div>
+        ${targetRow}`;
+    // ── Choice area ──────────────────────────────────────────
+    const choiceArea=document.getElementById('choice-area');
+    choiceArea.innerHTML='';
+    if(!isDungeon){
+        const tgtC=NIGHT_TARGETS[storyDay]||NIGHT_TARGETS[8];
+        const isPerfC=total>=tgtC.perfect, isGoodC=total>=tgtC.good, isSurC=total>=tgtC.survive;
+        if(isSurC){
+            const cl=dlgTable2.choiceLevel;
+            const showC=cl==='perfect'?isPerfC:cl==='good'?isGoodC:!!cl;
+            if(showC){
+                if(isPerfC&&dlgTable2.specialReveal){
+                    choiceArea.innerHTML=`<div class="special-reveal-block">${fmtText(dlgTable2.specialReveal)}</div>`;
+                }else if(dlgTable2.choices&&dlgTable2.choices.length){
+                    const btns=dlgTable2.choices.map((c,i)=>
+                        `<button class="result-choice-btn" onclick="pickChoice(${storyDay},${i})">${c.label}</button>`
+                    ).join('');
+                    choiceArea.innerHTML=`<div class="choice-area"><div class="choice-prompt">── 你的回應 ──</div>${btns}</div>`;
+                }
+            }
+        }
+    }
+    const en=3+rerolls;
+    document.getElementById('reroll-energy-note').innerHTML=rerolls>0
+        ?`剩餘 <strong>${rerolls}</strong> 次重塑 → 明日額外精力 <strong>+${rerolls}</strong> 點（共 <strong>${en}</strong> 點）`
+        :`所有重塑機會用盡，明日精力為基礎 <strong>3</strong> 點`;
+    show('result-overlay');
+}
+
+function showBadEndNight(day,gw) {
+    // Pick flavour based on goodwill + day
+    let title,color,story,reality;
+    if(gw<=5){
+        title='冰冷的終結'; color='#8c8c8c';
+        story='她靜靜地站起身，讓白色搖椅晃蕩在空氣中。\n\n「無聊。」\n\n一個字，卻比任何刀刃都要鋒利。她轉過身，指尖輕輕一揮——\n世界陷入了無盡的黑暗。';
+        reality='【意識連結中斷】\n「訊號消失……病患腦波驟降。療程宣告失敗。」\n你來不及留下任何印記——她的內心世界將你當成了又一個無名的威脅，予以抹除。';
+    } else if(gw<=20){
+        title='鮮血的代價'; color='#8c3b3b';
+        story='她的紅色眼眸在黑暗中閃爍，像兩顆燃燒的火焰。\n\n「你⋯⋯給了我一點點的期待。」她說，聲音裡帶著某種難以言說的東西。\n\n「偏偏，就差了那麼一點。」\n\n冰冷的手指掠過你的頸。';
+        reality='【意識連結中斷】\n「病患情感反應曾出現短暫波動，但在最後一刻急速回落。她的防線太厚了——故事的力量，還不足以穿透。」';
+    } else if(gw<=40){
+        title='破碎的靈魂'; color='#6b4c8c';
+        story='她雙眼中有什麼東西輕輕碎裂。\n\n「⋯⋯我以為這一次，會不一樣。」\n\n她的聲音很輕，像是說給自己聽的。\n良久後，銀白的長髮遮住了她的表情。\n\n「算了。這都是一個故事而已。」\n\n你感覺到世界開始消融。';
+        reality='【意識連結中斷】\n「病患神經元出現強烈波動後急速抑制——這是心理防禦機制的強制觸發。她差點打開了那扇門，但最終選擇了關閉。」';
+    } else {
+        title='淚水與黑暗'; color='#4a7c59';
+        story='她沒有說話。\n很久很久之後，你看見一滴淚珠從她蒼白的臉頰滑落。\n\n「為什麼⋯⋯為什麼你不再努力一點。」\n\n這不是憤怒，是某種更深沉的悲傷。\n最後，她緩緩轉過身去。\n\n「走吧。我不想讓你看見我哭。」';
+        reality='【意識連結中斷】\n「病患腦波在最後幾秒呈現複雜的情感訊號——悲傷、失望、以及某種說不清的眷戀。她如此接近了，卻仍然關上了那扇門。」';
+    }
+    document.querySelector('#result-overlay .mpanel').innerHTML=`
+        <div class="bad-end-wrap">
+            <div class="bad-end-title" style="color:${color};">【Bad End】${title}</div>
+            <div style="color:${color};font-size:11px;letter-spacing:2px;">第 ${day} 夜・好感度 ${gw}</div>
+            <div class="bad-end-story">${fmtText(story)}</div>
+            <div class="bad-end-reality">${fmtText(reality)}</div>
+            <div style="margin-top:8px;"><button class="btn btn-gold" onclick="location.reload()">再次入夢</button></div>
+        </div>`;
+    show('result-overlay');
+}
+
+function showEnding() {
+    const gw=G.goodwill, tot=G.totalScore, fr=G.memFrags.length, bon=G.memBonus;
+
+    const ENDINGS = [
+        {
+            min:0,
+            title:'冰冷的終結', color:'#8c8c8c', badge:'陌生人',
+            story:'八個夜晚過去了。\n她站在古堡的最深處，背對著你。\n\n「故事⋯⋯就這樣了。」她說，聲音裡沒有任何情感。\n\n她轉過身，紅色的眼眸清澈得令人心寒。\n\n「你讓我失望了。」\n\n你沒能踏入她的心，連留下一道痕跡的資格都沒有。',
+            reality:'【療程結束】\n「連結中斷。病患莉莉絲腦波活動持平於最低值。」\n你摘下連結器，看著玻璃艙中安靜躺著的女孩——眼睛閉著，臉上毫無生氣。\n她的內心世界，仍然是一座無人踏入的冰封古堡。'
+        },
+        {
+            min:10,
+            title:'鮮血的代價', color:'#8c3b3b', badge:'熱人',
+            story:'「你給了我一點點期待，」她靜靜地說，語氣帶著一種不尋常的溫度。\n「但期待，才是最危險的東西。」\n\n她俯身，銀白的髮絲垂落你的臉旁。\n\n「希望下一個，能比你再好一點。」\n\n冷意從頸間蔓延，世界慢慢黯淡。',
+            reality:'【療程結束】\n「連結中斷。病患出現短暫的情感反應後回落。」\n「她醒了，但不肯說話。只是靜靜地望著窗外，那道眼神⋯⋯」\n同事在你耳邊低聲：「這已經是這個月第三次了。她的心房，比我們以為的更深。」'
+        },
+        {
+            min:25,
+            title:'破碎的信任', color:'#6b4c8c', badge:'朋友',
+            story:'好不容易，她打開了那扇鎖了許久的門。\n\n「我以為⋯⋯這一次會不一樣。」\n\n然而，當你站在門口猶豫的那一刻，她看見了。\n她什麼都看見了。\n\n她雙眼空洞，聲音顫抖：「是你教我，不是所有人都一樣的。」\n「然後，你讓我親眼看見——原來都一樣。」\n\n她一次次重新攻擊，淚水沿著臉頰滑落。\n比以往更封閉，再也走不出這座古堡。',
+            reality:'【療程結束】\n「連結中斷。病患出現激烈情緒波動，目前呈現急性退縮反應。」\n你脫下連結器時，手還在顫。\n診斷書上寫著：「本次療程造成二次創傷，建議暫停治療，轉介長期住院觀察。」\n你在空白的備注欄，寫下：「我很抱歉，莉莉絲。」'
+        },
+        {
+            min:45,
+            title:'無言的放行', color:'#4a7c59', badge:'知己',
+            story:'玄關的大門很久沒有被打開了。\n積了厚厚的灰塵的門鉸鏈發出沉重的聲響。\n\n她站在陰影裡，臉半隱半現。\n\n「你⋯⋯讓我想到了一些事。」她的聲音很低。\n\n你沒有說話，只是等待。\n\n「去吧。」她最後說，轉過身不看你，「並且⋯⋯保守我的祕密。」\n\n你在回頭的那一刻，看見她獨自站在陽光的邊界，孤獨的身影被拉得很長。',
+            reality:'【療程結束】\n「連結中斷。病患莉莉絲已清醒，生命體徵穩定。」\n她坐在病床上，看著你，沉默了很久。\n最後，她輕輕地說：「謝謝你陪我待在那個地方。」\n那是她三年來，第一次對人說出「謝謝」。'
+        },
+        {
+            min:70,
+            title:'永夜的眷屬', color:'#c0a060', badge:'眷友',
+            story:'她輕輕地咬下，你感受到一陣暈眩。\n待你再次睜眼，世界的色彩已有些不同。\n\n「從今天起，你屬於永夜，」她以一種介於滿足與溫柔之間的語氣說道，\n「是我的。」\n\n她將你拉進了古堡的深處。\n門，在身後緩緩閉上。',
+            reality:'【療程結束】\n「連結中斷。病患情感依戀指數超過警戒值——她開始信任了，但尚未能獨立。」\n她醒來，第一件事是找你的手。\n督導在走廊攔下你：「界線，醫生。你必須讓她學會，沒有你，她也可以好好的。」\n你點頭，望著玻璃後她仍然依賴的眼神，心中有些複雜。'
+        },
+        {
+            min:100,
+            title:'復仇之路', color:'#ffd700', badge:'摯愛',
+            story:'她從床下拖出了那個積滿塵埃的木箱。\n\n裡面，是一件純白的婚紗。\n\n她抖開它時，布料在月光下閃爍——純白如初，像是一場還沒有開始的夢。\n\n「我等這句話，等了很久了。」她說，聲音裡帶著從未有過的溫柔。\n\n她穿上婚紗，伸出了手。\n\n「陪我去找那個人。一起，把過去的事了結掉。」',
+            reality:'【療程結束】\n「連結中斷。病患莉莉絲，情感連結指數達到療癒閾值。療程成功。」\n她坐起身，看著你，眼眶泛紅，卻是笑著的。\n「我做了一個很長的夢，」她說，「夢裡的世界很奇怪，但是⋯⋯你一直都在。」\n外頭的陽光透過白色窗帘灑進來。\n這是她三年來，第一次讓窗帘保持開著的。'
+        }
+    ];
+    const ending=[...ENDINGS].reverse().find(e=>gw>=e.min)||ENDINGS[0];
+    document.querySelector('#result-overlay .mpanel').innerHTML=`
+        <div class="bad-end-wrap">
+            <div class="bad-end-title" style="color:${ending.color};">${ending.title}</div>
+            <div style="color:${ending.color};font-size:11px;letter-spacing:2px;opacity:.8;">好感度 ${gw}　${ending.badge}</div>
+            <div class="bad-end-story">${fmtText(ending.story)}</div>
+            <div class="bad-end-reality">${fmtText(ending.reality)}</div>
+            <div class="srow" style="margin-top:12px;"><span class="sl">最終得分</span><span class="sv">${tot}</span></div>
+            <div class="srow"><span class="sl">記憶碎片</span><span class="sv">${fr} 枚 &middot; +${bon}%</span></div>
+            <div style="margin-top:16px;"><button class="btn btn-gold" onclick="location.reload()">再次入夢</button></div>
+        </div>`;
+    show('result-overlay');
+}
+
+// ── Audio Controls ──────────────────────────────────────────
+const AudioSettings = {
+    bgmEnabled: localStorage.getItem('bgmEnabled') !== 'false',
+    voiceEnabled: localStorage.getItem('voiceEnabled') !== 'false',
+    
+    toggleBGM() {
+        this.bgmEnabled = !this.bgmEnabled;
+        localStorage.setItem('bgmEnabled', this.bgmEnabled);
+        const bgm = document.getElementById('bgm');
+        const btn = document.getElementById('toggle-bgm');
+        if (this.bgmEnabled) {
+            bgm.play().catch(() => {});
+            btn.classList.remove('off');
+        } else {
+            bgm.pause();
+            btn.classList.add('off');
+        }
+    },
+    
+    toggleVoice() {
+        this.voiceEnabled = !this.voiceEnabled;
+        localStorage.setItem('voiceEnabled', this.voiceEnabled);
+        const btn = document.getElementById('toggle-voice');
+        if (this.voiceEnabled) {
+            btn.classList.remove('off');
+        } else {
+            btn.classList.add('off');
+        }
+    },
+    
+    initButtons() {
+        const bgmBtn = document.getElementById('toggle-bgm');
+        const voiceBtn = document.getElementById('toggle-voice');
+        if (!this.bgmEnabled) bgmBtn.classList.add('off');
+        if (!this.voiceEnabled) voiceBtn.classList.add('off');
+        bgmBtn.addEventListener('click', () => this.toggleBGM());
+        voiceBtn.addEventListener('click', () => this.toggleVoice());
+    },
+    
+    startBGM() {
+        if (this.bgmEnabled) {
+            const bgm = document.getElementById('bgm');
+            bgm.play().catch(() => {});
+        }
+    }
+};
+
+// ── Event modal ─────────────────────────────────────────────
+let evOnClose=null;
+function _playVoice(id){ 
+    if (!AudioSettings.voiceEnabled) return;
+    const a=document.getElementById(id); 
+    if(a){a.currentTime=0;a.play().catch(()=>{});} 
+}
+function showEvent({scene='',dialogues=[],choices=[],closeLabel='繼續',onClose=null,sprite=undefined,bg=null,voice=null}={}) {
+    if(voice) _playVoice(voice);
+    evOnClose=onClose||null;
+    // Background
+    const _modal=document.getElementById('event-modal');
+    if(bg){
+        _modal.style.background=`linear-gradient(to top,rgba(0,0,0,0.82) 28%,rgba(0,0,0,0.18) 100%),url('assets/${bg}') center/cover no-repeat`;
+    } else {
+        _modal.style.background='';
+    }
+    // Sprite
+    const _spr=document.getElementById('ev-sprite');
+    const _lcvs=document.getElementById('lilith-canvas');
+    const _DARK_SUIT=['pensive','sad_empathy'];
+    function _stopAll(){ stopLilithVideo(); stopLilithReveal(); stopLilithDark(); stopLilithSleepwear(); }
+    if(sprite===null){
+        _spr.style.opacity='0'; _spr.src='';
+        _stopAll();
+    } else if(sprite==='lilith_showing_her_face'){
+        _spr.style.opacity='0'; _spr.src=''; _lcvs.style.display='none';
+        _stopAll(); startLilithDark();
+    } else if(_DARK_SUIT.includes(sprite)){
+        _spr.style.opacity='0'; _spr.src=''; _lcvs.style.display='none';
+        _stopAll(); startLilithDark();
+    } else if(sprite==='lilth_sleepwear'){
+        _spr.style.opacity='0'; _spr.src=''; _lcvs.style.display='none';
+        _stopAll(); startLilithSleepwear();
+    } else if(typeof sprite==='string'){
+        _stopAll(); _lcvs.style.display='none';
+        _spr.style.display='block'; _spr.src=`assets/${sprite}.png`; _spr.style.opacity='1';
+    } else {
+        // Default: Lilith normal — chroma-key video
+        _spr.style.opacity='0'; _spr.src='';
+        _stopAll(); startLilithVideo();
+    }
+    const spk=dialogues.length>0?(dialogues[0].speaker||''):'';
+    document.getElementById('ev-speaker').textContent=(spk==='\u8389\u8389\u7d72'&&!G.lilithNameKnown)?'':spk;
+    document.getElementById('ev-scene').textContent=scene;
+    const dlgBox=document.getElementById('ev-dialogues'); dlgBox.innerHTML='';
+    dialogues.forEach(d=>{
+        const div=document.createElement('div'); div.className='ev-dialogue';
+        div.innerHTML=`${d.speaker?`<div class="speaker">${d.speaker}</div>`:''}
+                       <div class="words">${d.words.replace(/\n/g,'<br>')}</div>`;
+        dlgBox.appendChild(div);
+    });
+    const choiceBox=document.getElementById('ev-choices'); choiceBox.innerHTML='';
+    const closeRow=document.getElementById('ev-close-row');
+    if(choices.length>0){
+        closeRow.style.display='none';
+        choices.forEach(c=>{
+            const btn=document.createElement('button'); btn.className='ev-choice';
+            btn.textContent=c.label;
+            btn.addEventListener('click',()=>{ if(c.onPick) c.onPick(); });
+            choiceBox.appendChild(btn);
+        });
+    } else {
+        closeRow.style.display='block';
+        document.getElementById('ev-close-btn').textContent=closeLabel;
+    }
+    show('event-modal');
+}
+document.getElementById('ev-close-btn').addEventListener('click',()=>{
+    hide('event-modal'); // stopLilithVideo called inside hide()
+    if(evOnClose){ evOnClose(); evOnClose=null; }
+});
+
+// ── Lilith chroma-key / luma-key video ──────────────────────
+let _lilithRaf=null;
+const _lilithTargets=new Map(); // canvasId → videoId
+// 'chroma' = green-screen removal; 'luma' = black-background removal
+const _lilithKeys={
+    'lilith-canvas':           'chroma',
+    'lily-night-canvas':       'chroma',
+    'lilith-reveal-canvas':    'chroma',
+    'lilith-dark-canvas':      'chroma',
+    'lilith-sleepwear-canvas': 'chroma',
+    'dungeon-reveal-canvas':   'chroma',
+    'dungeon-dark-canvas':     'chroma',
+};
+
+function _chromaKey(d){
+    for(let i=0;i<d.length;i+=4){
+        const r=d[i],g=d[i+1],b=d[i+2];
+        const diff=g-Math.max(r,b);
+        if(diff>30) d[i+3]=0;
+        else if(diff>10) d[i+3]=Math.round(d[i+3]*(30-diff)/20);
+    }
+}
+// Remove near-black background pixels (Rec.709 luminance threshold)
+function _lumaKey(d){
+    for(let i=0;i<d.length;i+=4){
+        const lum=0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2];
+        if(lum<18) d[i+3]=0;
+        else if(lum<45) d[i+3]=Math.round(d[i+3]*(lum-18)/27);
+    }
+}
+function _chromaFrame(){
+    if(_lilithTargets.size===0){_lilithRaf=null;return;}
+    _lilithTargets.forEach((videoId,canvasId)=>{
+        const vid=document.getElementById(videoId);
+        const cvs=document.getElementById(canvasId);
+        if(!vid||!cvs||cvs.style.display==='none') return;
+        if(vid.readyState<2) return;
+        if(cvs.width!==vid.videoWidth||cvs.height!==vid.videoHeight){
+            cvs.width=vid.videoWidth||400; cvs.height=vid.videoHeight||600;
+        }
+        const ctx=cvs.getContext('2d');
+        ctx.drawImage(vid,0,0);
+        try{
+            const img=ctx.getImageData(0,0,cvs.width,cvs.height);
+            if(_lilithKeys[canvasId]==='luma') _lumaKey(img.data);
+            else _chromaKey(img.data);
+            ctx.putImageData(img,0,0);
+        }catch(e){}
+    });
+    _lilithRaf=requestAnimationFrame(_chromaFrame);
+}
+function _lilithShow(canvasId,videoId){
+    const vid=document.getElementById(videoId);
+    const cvs=document.getElementById(canvasId);
+    if(!cvs) return;
+    cvs.style.display='block';
+    _lilithTargets.set(canvasId,videoId);
+    if(vid&&vid.paused) vid.play().catch(()=>{});
+    if(!_lilithRaf) _lilithRaf=requestAnimationFrame(_chromaFrame);
+}
+function _lilithHide(canvasId){
+    const cvs=document.getElementById(canvasId);
+    if(cvs) cvs.style.display='none';
+    const videoId=_lilithTargets.get(canvasId);
+    _lilithTargets.delete(canvasId);
+    if(videoId){
+        const stillUsed=[..._lilithTargets.values()].includes(videoId);
+        if(!stillUsed){
+            const vid=document.getElementById(videoId);
+            if(vid){vid.pause();vid.currentTime=0;}
+        }
+    }
+    if(_lilithTargets.size===0&&_lilithRaf){cancelAnimationFrame(_lilithRaf);_lilithRaf=null;}
+}
+function startLilithVideo(){ _lilithShow('lilith-canvas','lilith-vid'); }
+function stopLilithVideo(){ _lilithHide('lilith-canvas'); }
+// Reveal plays once → auto-chains to dark suit loop
+function startLilithReveal(){
+    const v=document.getElementById('lilith-reveal-vid');
+    if(v){ v.currentTime=0; v.onended=()=>{ stopLilithReveal(); startLilithDark(); }; }
+    _lilithShow('lilith-reveal-canvas','lilith-reveal-vid');
+}
+function stopLilithReveal(){
+    _lilithHide('lilith-reveal-canvas');
+    const v=document.getElementById('lilith-reveal-vid'); if(v) v.onended=null;
+}
+function startLilithDark(){ _lilithShow('lilith-dark-canvas','lilith-dark-vid'); }
+function stopLilithDark(){ _lilithHide('lilith-dark-canvas'); }
+function startLilithSleepwear(){ _lilithShow('lilith-sleepwear-canvas','lilith-sleepwear-vid'); }
+function stopLilithSleepwear(){ _lilithHide('lilith-sleepwear-canvas'); }
+// Dungeon versions — share the same source videos
+function startDungeonReveal(){
+    const dv=document.getElementById('lilith-dark-vid');
+    if(dv) dv.currentTime=0; // pre-seek dark video so first frame is ready
+    const v=document.getElementById('lilith-reveal-vid');
+    if(v){ v.currentTime=0; v.onended=()=>{ startDungeonDark(); stopDungeonReveal(); }; }
+    _lilithShow('dungeon-reveal-canvas','lilith-reveal-vid');
+}
+function stopDungeonReveal(){
+    _lilithHide('dungeon-reveal-canvas');
+    const v=document.getElementById('lilith-reveal-vid'); if(v) v.onended=null;
+}
+function startDungeonDark(){ _lilithShow('dungeon-dark-canvas','lilith-dark-vid'); }
+function stopDungeonDark(){ _lilithHide('dungeon-dark-canvas'); }
+function startLilithNight(){ _lilithShow('lily-night-canvas','lilith-vid'); }
+function stopLilithNight(){ _lilithHide('lily-night-canvas'); }
+
+// ── BGM ─────────────────────────────────────────────────────
+(function(){
+    const bgm=document.getElementById('bgm');
+    if(!bgm) return;
+    bgm.volume=0.4;
+    function tryPlay(){ bgm.play().catch(()=>{}); }
+    document.addEventListener('click',tryPlay,{once:true});
+    document.addEventListener('keydown',tryPlay,{once:true});
+})();
+
+// ── Location trace (castle) ──────────────────────────────────
+function openTrace(loc) {
+    if(!G.explore(loc)) return;
+    const locData = getLocData(loc);
+    const traces = LOCATION_TRACES[loc];
+    if(!traces) { openCoin(loc); return; }
+    const trace = traces[(G.currentDay - 1) % traces.length];
+    showEvent({
+        scene: `【${locData.icon} ${locData.name}】\n\n${trace.text}`,
+        dialogues: [],
+        choices: [
+            {
+                label: '✍「記錄下來。」（+1 線索點，今晚故事 +12 分）',
+                onPick: () => {
+                    G.cluePoints++;
+                    hide('event-modal');
+                    toast(`記下了關於「${locData.name}」的線索 ✍（線索 ${G.cluePoints} 枚）`);
+                    renderDay();
+                }
+            },
+            {
+                label: '🪬「帶走一件物品。」（+記憶碎片，永久分數加成）',
+                onPick: () => {
+                    const f = MEMORIES[Math.floor(Math.random() * MEMORIES.length)];
+                    G.memFrags.push(f); G.memBonus += f.bonus;
+                    hide('event-modal');
+                    toast(`帶走了記憶碎片：${f.name}（+${f.bonus}%）`);
+                    renderDay();
+                }
+            },
+            {
+                label: '🤍「保持原樣，不打擾。」（+1 好感度）',
+                onPick: () => {
+                    G.goodwill++;
+                    G.updateGoodwillTier();
+                    hide('event-modal');
+                    toast('莉莉絲的好感度 +1');
+                    renderDay();
+                }
+            }
+        ]
+    });
+}
+
+// ── Coin flip (地牢階段備用) ──────────────────────────────────
+let activeLoc=null;
+function openCoin(loc) {
+    if(!G.explore(loc)) return;
+    activeLoc=loc;
+    const locData=getLocData(loc);
+    document.getElementById('coin-loc-name').textContent=locData.name;
+    document.getElementById('coin-loc-desc').textContent=`猜測古老硬幣的正反面，命運將決定你在「${locData.name}」的發現`;
+    document.getElementById('coin-res').innerHTML='';
+    document.getElementById('coin-close-btn').style.display='none';
+    document.querySelectorAll('.coin-btn').forEach(b=>b.disabled=false);
+    show('coin-modal');
+}
+function resolveCoin(choice) {
+    const actual=Math.random()<0.5?'heads':'tails', win=choice===actual;
+    document.querySelectorAll('.coin-btn').forEach(b=>b.disabled=true);
+    const face=actual==='heads'?'☀️ 正面':'🌙 反面';
+    let html='';
+    if(win){
+        const f=MEMORIES[Math.floor(Math.random()*MEMORIES.length)];
+        G.memFrags.push(f); G.memBonus+=f.bonus;
+        html=`<div class="cwin">✓ 猜對！（${face}）<br>獲得記憶碎片：<strong>${f.name}</strong><br><em>${f.rarity} · +${f.bonus}% 永久加成</em></div>`;
+    } else {
+        html=`<div class="cfail">✗ 猜錯了。（${face}）</div>`;
+        if(Math.random()<0.5){const i=INSPIRES[Math.floor(Math.random()*INSPIRES.length)];html+=`<div style="color:var(--gold);margin-top:8px;">但你有所啟發：<strong>${i.name}</strong><br><em>${i.desc}</em></div>`;}
+    }
+    document.getElementById('coin-res').innerHTML=html;
+    document.getElementById('coin-close-btn').style.display='inline-block';
+    renderDay();
+}
+
+// ── Dungeon Intro ────────────────────────────────────────────
+const dungeonState = {
+    clues:{ angels:false, dust:false, bread:false, bones:false, bones_detail:false },
+    tutorialSeen:false
+};
+let dungeonPendingResult = null; // 'good' | 'bad' | null
+
+const DUNGEON_SCENES = {
+    awaken:{
+        text:`你在一片冰冷潮濕的石地上恢復意識。手腕上傳來金屬的冰冷觸感，你被鎖住了。這似乎是一座地牢。<br><br><em>（內心獨白）<br>我在哪裡？……頭好痛，什麼都想不起來。我的名字……我的過去……一片空白。</em>`,
+        choices:()=>[{label:'（一個身影出現在地牢門口）',next:'first_encounter'}]
+    },
+    first_encounter:{
+        text:`地牢遠處的鐵門發出沉重的「嘎吱」聲，一道光線劃破黑暗。一個高大的人影逆光而立，輪廓被厚重的衣物包裹，最引人注目的是其頭部——一個中世紀瘟疫醫生所戴的，有著長長鳥喙的鐵面具。她一步步走近，每一步都伴隨著輕微的金屬碰撞聲。<br><br>「你在我的領地門口被發現。一個不幸的發現。凡是見過此地的人，都不被允許離開。」<br><br>她拉過一把看似與此地格格不入的白色搖椅，坐了下來。<br><br>「你的生命已經註定要終結。唯一懸而未決的問題是，你將如何度過你最後的時日。<strong>從今晚開始，我會來審問你。</strong>」`,
+        choices:()=>[{label:'（在恐懼中等待黑夜過去）',next:'dungeon_hub'}]
+    },
+    dungeon_hub:{
+        text:()=>{
+            const n=Object.values(dungeonState.clues).filter(Boolean).length;
+            const all=Object.values(dungeonState.clues).every(Boolean);
+            let t=`白天降臨，你被獨自留在地牢中。那個神秘人物離開了。為了打發時間，也為了尋找一線生機，你決定觀察四周。`;
+            if(all) t+=`<br><br><em>你已把地牢每個角落都觀察遍了。你推斷此人是古堡後裔，獨自生活，且有著殺害男性並吸食血液的嫌疑，但其手法似乎有所轉變。</em>`;
+            else if(n>0) t+=`<br><br><em>已觀察 ${n} 處地點。</em>`;
+            return t+`<br><br>你該做些什麼？`;
+        },
+        choices:()=>[
+            !dungeonState.clues.angels       && {label:'觀察天花板的雕飾',       next:'dungeon_angels'},
+            !dungeonState.clues.dust         && {label:'感受環境的濕冷與塵埃',   next:'dungeon_dust'},
+            !dungeonState.clues.bread        && {label:'查看送來的食物',         next:'dungeon_bread'},
+            !dungeonState.clues.bones        && {label:'檢查角落的乾屍堆',       next:'dungeon_bones'},
+            dungeonState.clues.bones && !dungeonState.clues.bones_detail && {label:'更仔細地檢查骸骨', next:'dungeon_bones_detail'},
+            {label:'（等待夜晚的審問）', next:'interrogation'}
+        ].filter(Boolean)
+    },
+    dungeon_angels:{
+        onEnter:()=>{ dungeonState.clues.angels=true; },
+        text:`你抬頭望向地牢的角落，藉著從門縫透進的微光，你看到了一些精緻的石頭天使雕飾。儘管年代久遠，圖樣已被歲月磨損得模糊不清，但其優雅的線條依然透露出此處曾有的高貴。這不像一般的監獄，更像是一座……貴族古堡的地下部分。`,
+        choices:()=>[{label:'繼續觀察地牢',next:'dungeon_hub'}]
+    },
+    dungeon_dust:{
+        onEnter:()=>{ dungeonState.clues.dust=true; },
+        text:`天花板的石磚結構年久失修，布滿了裂痕，濕氣從中滲出。地板上積著厚厚的灰塵與蜘蛛網，顯然已經極久沒有人打理。`,
+        choices:()=>[{label:'繼續觀察地牢',next:'dungeon_hub'}]
+    },
+    dungeon_bread:{
+        onEnter:()=>{ dungeonState.clues.bread=true; },
+        text:`每天早上，會有人從門下的小窗口推進一個餐盤。盤子很髒，但上面的麵包卻出乎意料地……不錯。雖然稱不上新鮮出爐，但質地鬆軟，具備一定的品質。這形成了一種詭異的矛盾：一個對囚犯的食物品質有所要求，卻對其所處的環境棄之不顧的神秘人物。`,
+        choices:()=>[{label:'繼續觀察地牢',next:'dungeon_hub'}]
+    },
+    dungeon_bones:{
+        onEnter:()=>{ dungeonState.clues.bones=true; },
+        text:`你的牢房角落裡，堆放著一堆令人毛骨悚然的乾屍。空氣中那股陳舊的血腥味正是源自於此。你鼓起勇氣靠近觀察，發現這些骸骨的骨骼形狀大致上都是男性。`,
+        choices:()=>[{label:'繼續觀察地牢',next:'dungeon_hub'}]
+    },
+    dungeon_bones_detail:{
+        onEnter:()=>{ dungeonState.clues.bones_detail=true; },
+        text:`你仔細檢查其中一具保存尚算完好的骸骨。在頸骨的位置，你發現了兩個對稱的、細小的孔洞，像是被某種尖銳的東西刺穿。接著，你撥開屍體身上破爛的衣物，看到其胸口處有著大大小小、深淺不一的刀口。<br><br><em>（內心獨白）<br>齒痕……還有刀傷？難道是……兇手改變了手法？先是像野獸一樣啃咬，後來又轉為使用刀刃。這不像是冷血殺手的作風，反而像是一種……掙扎。</em>`,
+        choices:()=>[{label:'繼續觀察地牢',next:'dungeon_hub'}]
+    },
+    interrogation:{
+        text:`夜幕降臨，地牢比白天更加寒冷。戴著鳥嘴面具的獄卒如約而至，坐在那張白色搖椅上，輕微地搖晃著。<br><br>「說吧。你是誰？為什麼會出現在這裡？」<br><br><em>她的眼神穿透面具，審視著你。你需要用故事打動她——今晚關係到你的性命。</em>`,
+        choices:()=>[{label:'（開始講述故事……）',next:'CARD_GAME'}]
+    },
+    interrogation_good:{
+        text:`獄卒沉默了許久。<br><br>「你的回答……跟以往來的那些傢伙不太一樣。」<br><br>她緩緩抬起手，解開了腦後的扣環，慢慢地，將那頂鳥嘴面具摘下。`,
+        choices:()=>[{label:'...（等待）',next:'the_reveal'}]
+    },
+    interrogation_bad:{
+        text:`獄卒發出一聲冷哼。<br><br>「無趣的回答。和其他人沒什麼兩樣。」<br><br>她的身影散發出危險的氣息，你感覺到生命正在流逝。<br><br>【結局：無名的骸骨】<br>你沒能引起她的興趣，成為了地牢中又一具無人知曉的乾屍。`,
+        choices:()=>[{label:'（重新開始）',next:'RESTART'}]
+    },
+    the_reveal:{
+        text:`面具之下，是一張你完全意想不到的臉龐。如水銀般流瀉的銀白長髮，襯托著吹彈可破、卻毫無血色的肌膚。最驚人的是她的雙眼，宛如兩顆剔透的紅水晶，在黑暗中閃爍著奇異的光芒。<br><br>你意識到，眼前的少女絕非人類，然而其絕世的美貌早已攫住了你的靈魂。<br><br>「怎樣？太久沒看到女人了是吧？」她面無表情，語氣冰冷，但臉頰上卻浮現出一抹似有若無的緋紅。<br><br>你連忙搖頭，意識到自己失態了。<br><br>「出來吧，我帶你到別的地方。」她抽出鑰匙，走向牢門。但在開門前，她突然停下，左手指甲瞬間變得尖銳修長。「但是，如果你敢耍什麼小動作，你就完蛋了。我什麼都知道。」`,
+        choices:()=>[{label:'（跟隨她離開地牢）',next:'gilded_cage'}]
+    },
+    gilded_cage:{
+        text:`你們走出地牢，來到一座宏偉的大廳。雖然多數物件都被厚厚的灰塵所掩蓋，但依然可以窺見這裡曾經的奢華。她帶你穿過長廊，走上旋轉樓梯，在其中一扇門前停下。<br><br>「以後，這就是你的休息室。每天早上，準時到一樓的大廳報到。你以後的工作，就是每天跟我分享一則有趣的故事，知道嗎？」<br><br>你看見她銳利的目光，只能點頭答應。<br><br>「如果故事不有趣，就殺了你。」她留下這句話，轉身消失在長廊的黑暗中。`,
+        choices:()=>[{label:'（走進房間，不安地度過一晚）',next:'END_DUNGEON'}]
+    }
+};
+
+const DUNGEON_SCENE_META={
+    awaken:             {sprite:null,          speaker:''},
+    first_encounter:    {sprite:'doctor_1',    speaker:'???'},
+    dungeon_hub:        {sprite:null,          speaker:''},
+    dungeon_angels:     {sprite:null,          speaker:''},
+    dungeon_dust:       {sprite:null,          speaker:''},
+    dungeon_bread:      {sprite:null,          speaker:''},
+    dungeon_bones:      {sprite:null,          speaker:''},
+    dungeon_bones_detail:{sprite:null,         speaker:''},
+    interrogation:      {sprite:'doctor_1',    speaker:'???'},
+    interrogation_good: {sprite:'doctor_1',    speaker:'???'},
+    interrogation_bad:  {sprite:'doctor_1',    speaker:'???'},
+    the_reveal:         {sprite:'lilith_showing_her_face', speaker:''},
+    gilded_cage:        {sprite:null,            speaker:'', bg:'hall.png', fullCG:true},
+};
+
+function showDungeonScene(sceneId){
+    const scene=DUNGEON_SCENES[sceneId];
+    if(!scene) return;
+    const meta=DUNGEON_SCENE_META[sceneId]||{sprite:null,speaker:''};
+    // Switch background per scene
+    const dungeonScreen=document.getElementById('dungeon-screen');
+    const bgAsset=meta.bg||'jail.png';
+    const overlay=meta.fullCG
+        ? 'linear-gradient(to top, rgba(0,0,0,0.72) 22%, rgba(0,0,0,0.08) 100%)'
+        : 'linear-gradient(to top, rgba(0,0,0,0.88) 28%, rgba(0,0,0,0.25) 100%)';
+    dungeonScreen.style.background=`${overlay}, url('assets/${bgAsset}') center/cover no-repeat`;
+    const spriteEl=document.getElementById('dungeon-sprite');
+    stopDungeonReveal(); stopDungeonDark();
+    if(meta.sprite==='lilith_showing_her_face'){
+        spriteEl.src=''; spriteEl.style.opacity='0';
+        startDungeonReveal();
+    } else if(meta.sprite){
+        spriteEl.src=`assets/${meta.sprite}.png`; spriteEl.style.opacity='1';
+    } else {
+        spriteEl.src=''; spriteEl.style.opacity='0';
+    }
+    document.getElementById('vn-speaker').textContent=meta.speaker;
+    if(scene.onEnter) scene.onEnter();
+    document.getElementById('dungeon-text').innerHTML=
+        typeof scene.text==='function'?scene.text():scene.text;
+    const wrap=document.getElementById('dungeon-choices');
+    wrap.innerHTML='';
+    const choices=typeof scene.choices==='function'?scene.choices():scene.choices;
+    choices.forEach(choice=>{
+        const btn=document.createElement('button');
+        btn.className='dungeon-choice-btn';
+        btn.textContent=choice.label;
+        btn.addEventListener('click',()=>{
+            if(choice.next==='RESTART'){
+                dungeonState.clues={angels:false,dust:false,bread:false,bones:false,bones_detail:false};
+                showDungeonScene('awaken');
+            } else if(choice.next==='END_DUNGEON'){
+                G.phase='castle';
+                switchScreen('day'); renderDay();
+            } else if(choice.next==='CARD_GAME'){
+                if(!dungeonState.tutorialSeen){ show('tutorial-modal'); }
+                else { G.startDungeonNight(); }
+            } else {
+                showDungeonScene(choice.next);
+            }
+        });
+        wrap.appendChild(btn);
+    });
+}
+
+// ── Events ──────────────────────────────────────────────────
+AudioSettings.initButtons();
+document.getElementById('intro-btn').addEventListener('click',()=>{
+    AudioSettings.startBGM();
+    switchScreen('dungeon'); showDungeonScene('awaken');
+});
+document.getElementById('tutorial-close-btn').addEventListener('click',()=>{
+    dungeonState.tutorialSeen=true;
+    hide('tutorial-modal');
+    G.startDungeonNight();
+});
+document.getElementById('start-btn').addEventListener('click',()=>{
+    if(G.unlockedProtagonists.size===0){
+        toast('尚未解鎖任何主角牌');
+        return;
+    }
+    G.startNight(G.selectedProtagonist);
+});
+document.getElementById('hand-area').addEventListener('click',e=>{
+    const el=e.target.closest('.card');
+    if(!el||el.dataset.index===undefined) return;
+    const idx=parseInt(el.dataset.index);
+    const pos=selIdx.indexOf(idx);
+    if(pos>-1) selIdx.splice(pos,1);
+    else if(selIdx.length<5) selIdx.push(idx);
+    else toast('最多選5張牌');
+    render();
+});
+document.getElementById('play-btn').addEventListener('click',()=>G.playCurrentPhase());
+document.getElementById('reroll-btn').addEventListener('click',()=>{
+    if(selIdx.length>=1&&selIdx.length<=5){const idxs=[...selIdx];selIdx=[];G.reroll(idxs);}
+    else if(selIdx.length===0) toast('請先選擇1-5張要重塑的牌');
+    else toast('最多重塑5張牌');
+});
+document.getElementById('deck-modal').addEventListener('click',()=>hide('deck-modal'));
+document.getElementById('deck-modal-close').addEventListener('click',e=>{e.stopPropagation();hide('deck-modal');});
+document.querySelector('.deck-stack').addEventListener('click',()=>showDeckViewer());
+document.getElementById('deck-cnt').style.cursor='pointer';
+document.getElementById('deck-cnt').addEventListener('click',()=>showDeckViewer());
+
+function showDeckViewer(){
+    const grid=document.getElementById('deck-viewer-grid');
+    const cnt=document.getElementById('deck-viewer-cnt');
+    cnt.textContent=`剩餘 ${G.deck.length} 張 / 棄牌堆 ${G.discard.length} 張`;
+    const colOrder=['紅','黃','藍'];
+    const sorted=[...G.deck].sort((a,b)=>{
+        const ci=colOrder.indexOf(a.color)-colOrder.indexOf(b.color);
+        return ci!==0?ci:a.number-b.number;
+    });
+    grid.innerHTML=sorted.map(c=>{
+        const colEn=CARD_COL_EN[c.color];
+        if(colEn){
+            return `<div class="deck-mini" title="${c.color}${c.number}"><img src="assets/${colEn}_${c.number}.png" style="width:100%;height:100%;object-fit:cover;border-radius:5px;display:block;" alt="${c.color}${c.number}"></div>`;
+        }
+        return `<div class="deck-mini"><span class="dm-num">${c.number}</span><span class="dm-col">${c.color}</span></div>`;
+    }).join('');
+    show('deck-modal');
+}
+
+function resetToDayBtn(){
+    const btn=document.getElementById('to-day-btn');
+    btn.textContent='迎接白晝';
+    btn.style.borderColor=''; btn.style.color='';
+}
+document.getElementById('to-day-btn').addEventListener('click',()=>{
+    const r=G.rerolls;
+    hide('result-overlay');
+    resetToDayBtn();
+    if(dungeonPendingResult){
+        const res=dungeonPendingResult;
+        dungeonPendingResult=null;
+        switchScreen('dungeon');
+        showDungeonScene(res==='good'?'interrogation_good':'interrogation_bad');
+    } else if(G._badEndPending){
+        const {day,gw}=G._badEndPending;
+        G._badEndPending=null;
+        showBadEndNight(day,gw);
+    } else {
+        G.startDay(r);
+    }
+}); 
+document.getElementById('end-day-btn').addEventListener('click',()=>G.endDay());
+document.getElementById('loc-grid').addEventListener('click',e=>{
+    const el=e.target.closest('.loc-card');
+    if(!el) return;
+    if(el.classList.contains('disabled')){toast('精力不足！');return;}
+    if(el.classList.contains('visited')){toast('已探索過這個地點');return;}
+    clickLocation(el.dataset.loc);
+});
+document.querySelectorAll('.coin-btn').forEach(b=>b.addEventListener('click',()=>resolveCoin(b.dataset.face)));
+document.getElementById('coin-close-btn').addEventListener('click',()=>hide('coin-modal'));
+document.getElementById('help-btn').addEventListener('click',()=>show('help-modal'));
+document.getElementById('close-help-btn').addEventListener('click',()=>hide('help-modal'));
+document.getElementById('help-modal').addEventListener('click',e=>{if(e.target===document.getElementById('help-modal'))hide('help-modal');});
+document.addEventListener('keydown',e=>{
+    switch(e.key){
+        case 'Escape': hide('help-modal');selIdx=[];render();break;
+        case 'h': case 'H': show('help-modal');break;
+        case 'Enter': if(!document.getElementById('play-btn').disabled) G.playCurrentPhase();break;
+        case 'r': case 'R': if(!document.getElementById('reroll-btn').disabled&&selIdx.length>0) document.getElementById('reroll-btn').click();break;
+    }
+});
+
+// ── Init ────────────────────────────────────────────────────
+
+render();
+</script>
+</body>
+</html>
